@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 }
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
-  const struct ether_header* ethernetHeader;
+//  const struct ether_header* ethernetHeader;
   const struct ip* ipHeader;
   const struct tcphdr* tcpHeader;
   const struct udphdr* udpHeader;
@@ -64,21 +64,20 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   int data_length = 0;
 //  string dataStr = "";
 
-  ethernetHeader = (struct ether_header*)packet;
-  if (ntohs(ethernetHeader->ether_type) == ETHERTYPE_IP) {
-      cout << "IP packet" << endl;
-      ipHeader = (struct ip*)(packet + sizeof(struct ether_header));
+//  ethernetHeader = (struct ether_header*)packet;
+//  if (ntohs(ethernetHeader->ether_type) == ETHERTYPE_IP) {
+      ipHeader = (struct ip*)packet;
       inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIp, INET_ADDRSTRLEN);
       inet_ntop(AF_INET, &(ipHeader->ip_dst), destIp, INET_ADDRSTRLEN);
 
       if (ipHeader->ip_p == IPPROTO_TCP) {
-          tcpHeader = (tcphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+          tcpHeader = (tcphdr*)(packet + sizeof(struct ip));
           sourcePort = ntohs(tcpHeader->source);
           destPort = ntohs(tcpHeader->dest);
       }
 
       if (ipHeader->ip_p == IPPROTO_UDP) {
-          udpHeader = (udphdr*)(packet + sizeof(struct ether_header) + sizeof(struct ip));
+          udpHeader = (udphdr*)(packet + sizeof(struct ip));
           sourcePort = ntohs(udpHeader->source);
           destPort = ntohs(udpHeader->dest);
       }
@@ -99,7 +98,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
           cout << destPort << "\t" << sourcePort << "\t<\t";
 
 //      data = (u_char*)(packet + sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct tcphdr));
-      data_length = pkthdr->len - sizeof(struct ether_header);
+      data_length = pkthdr->len;
       cout << data_length << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
 
           // convert non-printable characters, other than carriage return, line feed,
@@ -117,5 +116,5 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
 //          if (dataLength > 0) {
 //              cout << dataStr << endl;
 //          }
-  }
+//  }
 }
