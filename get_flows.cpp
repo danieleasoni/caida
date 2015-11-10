@@ -6,7 +6,7 @@
 
 #include <string.h>
 #include <iostream>
-#include <fstream>
+#include <sstream>
 #include <pcap.h>
 #include <map>
 #include <net/ethernet.h>
@@ -19,7 +19,7 @@
 using namespace std;
 
 map<string,long> flows;
-unsigned long counter = 0;
+unsigned long flow_counter = 0;
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet);
 
@@ -62,6 +62,8 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   int data_length = 0;
   stringstream sstm;
   string fivetuple;
+  pair<map<string,long>::iterator,bool> ret_value;
+  unsigned long current_flow;
 
   ipHeader = (struct ip*)packet;
   inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIp, INET_ADDRSTRLEN);
@@ -79,20 +81,24 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
       destPort = ntohs(udpHeader->dest);
   }
 
-  fwd = (strcmp(sourceIp,destIp) < 0)
+  fwd = (strcmp(sourceIp,destIp) < 0);
 
   if (fwd)
-      sstm << str(sourceIp) << "#" << str(destIp) << "#" << (int)ipHeader->ip_p << "#" << sourcePort << "#" << destPort;
+      sstm << sourceIp << "#" << destIp << "#" << (int)ipHeader->ip_p << "#" << sourcePort << "#" << destPort;
   else
-      sstm << str(destIp) << "#" << str(sourceIp) << "#" << (int)ipHeader->ip_p << "#" << destPort << "#" << sourcePort;
+      sstm << destIp << "#" << sourceIp << "#" << (int)ipHeader->ip_p << "#" << destPort << "#" << sourcePort;
   fivetuple = sstm.str();
 
-  
+  ret_value = flows.emplace(fivetuple, flow_counter);
+  if (ret_value.second) {
+      flow_counter++;
+  }
+  current_flow = ret_value.first->second;
 
   if (fwd)
-      cout << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t" << sourcePort << "\t" << destPort << "\t>\t";
+      cout << current_flow << "\t" << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t" << sourcePort << "\t" << destPort << "\t>\t";
   else
-      cout << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t" << destPort << "\t" << sourcePort << "\t<\t";
+      cout << current_flow << "\t" << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t" << destPort << "\t" << sourcePort << "\t<\t";
 
   data_length = pkthdr->len;
   cout << data_length << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
