@@ -66,7 +66,7 @@ int main(int argc, char **argv)
       else if (ether_type == ETHER_TYPE_8021Q) //my traces have this 
          ether_offset = 18; 
       else {
-         fprintf(stderr, "Unknown ethernet type, %04X, skipping...\n", ether_type); 
+         //fprintf(stderr, "Unknown ethernet type, %04X, skipping...\n", ether_type);
          continue;
       }
  

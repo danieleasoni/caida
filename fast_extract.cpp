@@ -74,14 +74,14 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   }
 
   if (strcmp(sourceIp,destIp) < 0) {
-      cout << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t";
+      cout << sourceIp << "\t" << destIp << "\t";
       fwd = true;
   } else {
-      cout << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t";
+      cout << destIp << "\t" << sourceIp << "\t";
       fwd = false;
   }
 
-  cout << (int)ipHeader->ip_p;
+  cout << (int)ipHeader->ip_p << "\t";
 
   if (fwd)
       cout << sourcePort << "\t" << destPort << "\t>\t";
