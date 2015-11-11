@@ -33,19 +33,23 @@ int main(int argc, char *argv[]) {
       return 1;
   }
 
-  in_file = argv[1];
+  for (int i=1; i<argc; i++) {
+      in_file = argv[i];
 
-  // open capture file for offline processing
-  descr = pcap_open_offline(in_file, errbuf);
-  if (descr == NULL) {
-      cerr << "pcap_open_live() failed: " << errbuf << endl;
-      return 1;
-  }
+      // open capture file for offline processing
+      descr = pcap_open_offline(in_file, errbuf);
+      if (descr == NULL) {
+          cerr << "pcap_open_offline() failed on file " << argv[i] << ": " << errbuf << endl;
+          return 1;
+      }
 
-  // start packet processing loop, just like live capture
-  if (pcap_loop(descr, 0, packetHandler, NULL) < 0) {
-      cerr << "pcap_loop() failed: " << pcap_geterr(descr) << endl;
-      return 1;
+      // start packet processing loop, just like live capture
+      if (pcap_loop(descr, 0, packetHandler, NULL) < 0) {
+          cerr << "pcap_loop() failed: " << pcap_geterr(descr) << endl;
+          return 1;
+      }
+
+      pcap_close(descr);
   }
 
   return 0;

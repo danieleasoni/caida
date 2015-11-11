@@ -4,7 +4,15 @@ LIBS=-lpcap
 get_flows: get_flows.cpp
 	g++ $< -o $@ $(LIBS) -std=c++11
 
-clean:
-	rm get_flows
+get_flow_stats: get_flow_stats.cpp
+	g++ $< -o $@ $(LIBS) -std=c++11
 
-.PHONY: clean
+fast_extract: fast_extract.cpp
+	g++ $< -o $@ $(LIBS) -std=c++11
+
+all: get_flows get_flow_stats fast_extract
+
+clean:
+	rm get_flows get_flow_stats fast_extract
+
+.PHONY: clean all
