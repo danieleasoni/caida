@@ -6,7 +6,10 @@
 
 #include <string.h>
 #include <iostream>
+#include <cstdio>
+#include <unistd.h>
 #include <sstream>
+#include <fstream>
 #include <pcap.h>
 #include <map>
 #include <net/ethernet.h>
@@ -37,6 +40,20 @@ inline double timeval_to_seconds(struct timeval *tv) {
   return tv->tv_sec + double(tv->tv_usec)/1000000;
 }
 
+inline bool file_exists(const string& name) {
+    return ( access ( name.c_str(), F_OK ) != -1 );
+}
+
+string get_new_filename(string base_name, string ext = "") {
+    string file_name = base_name + ext;
+    unsigned int counter = 1;
+    while (file_exists(file_name) && counter < 1000) {
+        file_name = base_name + to_string(counter) + ext;
+        counter++;
+    }
+    return file_name;
+}
+
 int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
@@ -44,6 +61,8 @@ int main(int argc, char *argv[]) {
   float flow_duration;
   float pkts_per_sec;
   float bytes_per_sec;
+  ofstream outFile;
+  string outFile_name;
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
@@ -69,12 +88,15 @@ int main(int argc, char *argv[]) {
       pcap_close(descr);
   }
 
+  outFile_name = get_new_filename("flow_stats");
+  outFile.open(outFile_name);
   for (map_iter_type iterator = flows.begin(); iterator != flows.end(); iterator++) {
       flow_duration = timeval_to_seconds(&(iterator->second.last_ts)) - timeval_to_seconds(&(iterator->second.first_ts));
       pkts_per_sec = iterator->second.count / flow_duration;
       bytes_per_sec = iterator->second.total_data / flow_duration;
-      cout << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
+      outFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
   }
+  outFile.close();
 
   return 0;
 }
@@ -131,12 +153,12 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   current_flow_stats_ptr->total_data = pkthdr->len;
   current_flow = current_flow_stats_ptr->id;
 
-//  if (fwd)
-//      cout << current_flow << "\t" << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t" << sourcePort << "\t" << destPort << "\t>\t";
-//  else
-//      cout << current_flow << "\t" << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t" << destPort << "\t" << sourcePort << "\t<\t";
-//
-//  data_length = pkthdr->len;
-//  cout << data_length << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
+  if (fwd)
+      cout << current_flow << "\t" << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t" << sourcePort << "\t" << destPort << "\t>\t";
+  else
+      cout << current_flow << "\t" << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t" << destPort << "\t" << sourcePort << "\t<\t";
+
+  data_length = pkthdr->len;
+  cout << data_length << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
 
 }
