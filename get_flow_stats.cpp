@@ -12,6 +12,7 @@
 #include <fstream>
 #include <pcap.h>
 #include <map>
+#include <time.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/in.h>
@@ -61,16 +62,22 @@ int main(int argc, char *argv[]) {
   float flow_duration;
   float pkts_per_sec;
   float bytes_per_sec;
-  ofstream outFile;
-  string outFile_name;
+  ofstream outFile, statFile;
+  string outFile_name, statFile_name;
+  time_t tim;
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
       return 1;
   }
 
+  outFile_name = get_new_filename("processing_status", ".tmp");
+  outFile.open(outFile_name);
+  
   for (int i=1; i<argc; i++) {
       in_file = argv[i];
+      time(&tim);
+      outFile << ctime(&tim) << " Processing file " << i << ": " << in_file << endl;
 
       // open capture file for offline processing
       descr = pcap_open_offline(in_file, errbuf);
@@ -88,15 +95,18 @@ int main(int argc, char *argv[]) {
       pcap_close(descr);
   }
 
-  outFile_name = get_new_filename("flow_stats");
-  outFile.open(outFile_name);
+  time(&tim);
+  outFile << ctime(&tim) << " Starting generation of flow stats" << endl;
+
+  statFile_name = get_new_filename("flow_stats");
+  statFile.open(statFile_name);
   for (map_iter_type iterator = flows.begin(); iterator != flows.end(); iterator++) {
       flow_duration = timeval_to_seconds(&(iterator->second.last_ts)) - timeval_to_seconds(&(iterator->second.first_ts));
       pkts_per_sec = iterator->second.count / flow_duration;
       bytes_per_sec = iterator->second.total_data / flow_duration;
-      outFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
+      statFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
   }
-  outFile.close();
+  statFile.close();
 
   return 0;
 }
