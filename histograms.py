@@ -12,7 +12,8 @@ OUTDIR = "figs"
 CONVERTERS = {3 : lambda s: float(s if s != 'inf' else -1),
               4 : lambda s: float(s if s != 'inf' else -1)}
 
-BANDWIDTH_PPS_BINS = range(0, 51, 5)
+BANDWIDTH_PPS_BINS = NP.linspace(0, 20, num=100)
+BANDWIDTH_BPS_BINS = NP.linspace(0, 20, num=100)
 
 def get_new_filename(base, ext="", with_time=False):
     if with_time:
@@ -46,9 +47,9 @@ def generate_bandwidth_pps_histograms(data_array):
 def generate_bandwidth_bps_histograms(data_array):
     x = data_array[:,3]
     filename = get_new_filename(os.path.join(OUTDIR, "bwidth_bps"), ".eps")
-    generate_hist_and_save(x, filename)
+    generate_hist_and_save(x, filename, bins=BANDWIDTH_BPS_BINS)
     filename = get_new_filename(os.path.join(OUTDIR, "bwidth_bps_cumul"), ".eps")
-    generate_hist_and_save(x, filename,
+    generate_hist_and_save(x, filename, bins=BANDWIDTH_BPS_BINS,
                            cumulative=True, histtype='step', normed=True)
 
 if __name__ == "__main__":
