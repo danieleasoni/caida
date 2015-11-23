@@ -1,5 +1,6 @@
 from __future__ import print_function
 import sys, os
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as NP
 from types import *
@@ -15,7 +16,7 @@ CONVERTERS = {3 : lambda s: float(s if s != 'inf' else -1),
 BANDWIDTH_PPS_BINS = NP.linspace(0, 20, num=100)
 BANDWIDTH_BPS_BINS = NP.linspace(0, 20, num=100)
 LIFETIME_BINS = NP.linspace(0, 20, num=100)
-SCATTER_SAMPLE_SIZE = 10000 
+SCATTER_SAMPLE_SIZE = 25000
 
 def get_new_filename(base, ext="", with_time=False):
     if with_time:
@@ -49,15 +50,41 @@ def generate_hist_and_save(x, filename, bins=None, generate_pdf=False):
         plt.savefig(os.path.splitext(filename)[0] + ".pdf")
     plt.close()
 
-def generate_lifetime_bandwidth_scatter(lifetime, bandwidth, num_samples, generate_pdf=False):
+def generate_lifetime_bandwidth_scatter(lifetime, bandwidth, num_samples=None,
+        xlabel='session lifetime (seconds)', ylabel='bandwidth'):
     assert len(lifetime) == len(bandwidth)
-    filename = get_new_filename(os.path.join(OUTDIR, "lifetime_vs_bw"), ".eps")
-    idx = NP.random.choice(len(lifetime), num_samples)
-    fig = plt.scatter(lifetime[idx], bandwidth[idx])
-    fig = plt.hexbin(lifetime[idx], bandwidth[idx])
+    if num_samples is not None:
+        NP.random.seed(0)
+        idx = NP.random.choice(len(lifetime), num_samples)
+        lifetime = lifetime[idx]
+        bandwidth = bandwidth[idx]
+    # Generate and save normal scatterplot
+    filename = get_new_filename(os.path.join(OUTDIR, "lifetime_vs_bw_scatter"), ".pdf")
+    fig = plt.scatter(lifetime, bandwidth, c='blue', alpha=0.03, edgecolors='none')
+    ax = plt.gca()
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.set_xlim([0.05, 5000])
+    ax.set_ylim([0.0004, 300])
+    plt.xlabel(xlabel, fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
     plt.savefig(filename)
-    if generate_pdf:
-        plt.savefig(os.path.splitext(filename)[0] + ".pdf")
+    plt.close()
+    # Generate and save heatmap
+    filename = get_new_filename(os.path.join(OUTDIR, "lifetime_vs_bw_heat"), ".pdf")
+    fig = plt.hexbin(lifetime, bandwidth, norm=matplotlib.colors.LogNorm(), linewidths=(0,),
+            xscale='log', yscale='log', cmap=plt.cm.YlOrRd)
+    ax = plt.gca()
+    PCM=ax.get_children()[2]
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.set_xlim([0.05, 5000])
+    ax.set_ylim([0.0004, 300])
+    cb = plt.colorbar(PCM, ax=ax)
+    cb.set_label('# samples (out of ' + str(SCATTER_SAMPLE_SIZE) + ')')
+    plt.xlabel(xlabel, fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
+    plt.savefig(filename)
     plt.close()
 
 if __name__ == "__main__":
@@ -85,7 +112,7 @@ if __name__ == "__main__":
     # Bandwidth in bytes-per-second histogram
     #generate_hist_and_save(data_array[:,4], "bwidth_bps", bins=BANDWIDTH_BPS_BINS)
     # Scatter plot of lifetime vs bandwidth
-    generate_lifetime_bandwidth_scatter(data_array[:,2], data_array[:,3], SCATTER_SAMPLE_SIZE)
+    generate_lifetime_bandwidth_scatter(data_array[:,2], data_array[:,4], ylabel='bandwidth (bytes per second)', num_samples=SCATTER_SAMPLE_SIZE)
 
     if data_file is not sys.stdin:
         data_file.close()
