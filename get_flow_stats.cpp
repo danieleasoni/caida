@@ -4,7 +4,7 @@
  *  date: 09/11/2015 (original post: 19/12/2010)
  */
 
-#include <string.h>
+#include <string>
 #include <iostream>
 #include <cstdio>
 #include <unistd.h>
@@ -55,6 +55,44 @@ string get_new_filename(string base_name, string ext = "") {
     return file_name;
 }
 
+string create_fivetuple_id(const char *sourceIp, const char *destIp, int ipProto,
+                           u_int sourcePort, u_int destPort, bool forward=true) {
+  stringstream sstm;
+  if (forward)
+      sstm << sourceIp << "#" << destIp << "#" << ipProto << "#" << sourcePort << "#" << destPort;
+  else
+      sstm << destIp << "#" << sourceIp << "#" << ipProto << "#" << destPort << "#" << sourcePort;
+  return sstm.str();
+}
+
+void generate_stats_file(const string filename, map<string, struct flow_stats> *flows) {
+  float flow_duration;
+  float pkts_per_sec;
+  float bytes_per_sec;
+  ofstream statFile;
+  statFile.open(filename);
+  for (map_iter_type iterator = flows->begin(); iterator != flows->end(); iterator++) {
+      flow_duration = timeval_to_seconds(&(iterator->second.last_ts)) - timeval_to_seconds(&(iterator->second.first_ts));
+      pkts_per_sec = iterator->second.count / flow_duration;
+      bytes_per_sec = iterator->second.total_data / flow_duration;
+      statFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
+  }
+  statFile.close();
+}
+
+void output_packet_description(ostream &out, unsigned long flowid, char *sourceIp, char *destIp,
+                               int ipProto, u_int sourcePort, u_int destPort,
+                               const struct pcap_pkthdr* pkthdr, bool forward=true) {
+  if (forward)
+      out << flowid << "\t" << sourceIp << "\t" << destIp << "\t"
+          << ipProto << "\t" << sourcePort << "\t" << destPort << "\t>\t";
+  else
+      out << flowid << "\t" << destIp << "\t" << sourceIp << "\t"
+          << ipProto << "\t" << destPort << "\t" << sourcePort << "\t<\t";
+
+  out << pkthdr->len << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
+}
+
 int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
@@ -62,7 +100,7 @@ int main(int argc, char *argv[]) {
   float flow_duration;
   float pkts_per_sec;
   float bytes_per_sec;
-  ofstream outFile, statFile;
+  ofstream outFile;
   string outFile_name, statFile_name;
   time_t tim;
 
@@ -73,7 +111,7 @@ int main(int argc, char *argv[]) {
 
   outFile_name = get_new_filename("processing_status", ".tmp");
   outFile.open(outFile_name);
-  
+
   for (int i=1; i<argc; i++) {
       in_file = argv[i];
       time(&tim);
@@ -99,14 +137,7 @@ int main(int argc, char *argv[]) {
   outFile << ctime(&tim) << " Starting generation of flow stats" << endl;
 
   statFile_name = get_new_filename("flow_stats");
-  statFile.open(statFile_name);
-  for (map_iter_type iterator = flows.begin(); iterator != flows.end(); iterator++) {
-      flow_duration = timeval_to_seconds(&(iterator->second.last_ts)) - timeval_to_seconds(&(iterator->second.first_ts));
-      pkts_per_sec = iterator->second.count / flow_duration;
-      bytes_per_sec = iterator->second.total_data / flow_duration;
-      statFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
-  }
-  statFile.close();
+  generate_stats_file(statFile_name, &flows);
 
   return 0;
 }
@@ -118,9 +149,6 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   char sourceIp[INET_ADDRSTRLEN];
   char destIp[INET_ADDRSTRLEN];
   u_int sourcePort = 0, destPort = 0;
-  bool fwd;
-  int data_length = 0;
-  stringstream sstm;
   string fivetuple;
   pair<map_iter_type,bool> ret_value;
   unsigned long current_flow;
@@ -131,28 +159,23 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIp, INET_ADDRSTRLEN);
   inet_ntop(AF_INET, &(ipHeader->ip_dst), destIp, INET_ADDRSTRLEN);
 
+  // Retrieve source and destination port for TCP or UDP protocol
   if (ipHeader->ip_p == IPPROTO_TCP) {
       tcpHeader = (tcphdr*)(packet + sizeof(struct ip));
       sourcePort = ntohs(tcpHeader->source);
       destPort = ntohs(tcpHeader->dest);
   }
-
   if (ipHeader->ip_p == IPPROTO_UDP) {
       udpHeader = (udphdr*)(packet + sizeof(struct ip));
       sourcePort = ntohs(udpHeader->source);
       destPort = ntohs(udpHeader->dest);
   }
 
-  fwd = (strcmp(sourceIp,destIp) < 0);
+  fivetuple = create_fivetuple_id(sourceIp, destIp, (int)ipHeader->ip_p, sourcePort, destPort);
 
-  if (fwd)
-      sstm << sourceIp << "#" << destIp << "#" << (int)ipHeader->ip_p << "#" << sourcePort << "#" << destPort;
-  else
-      sstm << destIp << "#" << sourceIp << "#" << (int)ipHeader->ip_p << "#" << destPort << "#" << sourcePort;
-  fivetuple = sstm.str();
-
+  // Get pointer to the flow_stats struct in flows map that has the key equal
+  // to the current fivetuple, or create a new struct if the key is not in the map
   tmp_flow_stats = {flow_counter, pkthdr->ts, pkthdr->ts, 0L, 0L};
-
   ret_value = flows.emplace(fivetuple, tmp_flow_stats);
   if (ret_value.second) {
       flow_counter++;
@@ -163,12 +186,8 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   current_flow_stats_ptr->total_data = pkthdr->len;
   current_flow = current_flow_stats_ptr->id;
 
-  if (fwd)
-      cout << current_flow << "\t" << sourceIp << "\t" << destIp << "\t" << (int)ipHeader->ip_p << "\t" << sourcePort << "\t" << destPort << "\t>\t";
-  else
-      cout << current_flow << "\t" << destIp << "\t" << sourceIp << "\t" << (int)ipHeader->ip_p << "\t" << destPort << "\t" << sourcePort << "\t<\t";
-
-  data_length = pkthdr->len;
-  cout << data_length << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
+  output_packet_description(cout, current_flow, sourceIp, destIp, (int)ipHeader->ip_p,
+                            sourcePort, destPort, pkthdr);
 
 }
+
