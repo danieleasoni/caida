@@ -20,6 +20,8 @@
 #include <netinet/udp.h>
 #include <arpa/inet.h>
 
+#include "daniele_utils.h"
+
 using namespace std;
 
 struct flow_stats {
@@ -36,24 +38,6 @@ unsigned long flow_counter = 0;
 typedef map<string,struct flow_stats>::iterator map_iter_type;
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet);
-
-inline double timeval_to_seconds(struct timeval *tv) {
-  return tv->tv_sec + double(tv->tv_usec)/1000000;
-}
-
-inline bool file_exists(const string& name) {
-    return ( access ( name.c_str(), F_OK ) != -1 );
-}
-
-string get_new_filename(string base_name, string ext = "") {
-    string file_name = base_name + ext;
-    unsigned int counter = 1;
-    while (file_exists(file_name) && counter < 1000) {
-        file_name = base_name + to_string(counter) + ext;
-        counter++;
-    }
-    return file_name;
-}
 
 string create_fivetuple_id(const char *sourceIp, const char *destIp, int ipProto,
                            u_int sourcePort, u_int destPort, bool forward=true) {
