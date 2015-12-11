@@ -12,7 +12,7 @@
 #include <fstream>
 #include <pcap.h>
 #include <map>
-#include <time.h>
+#include <ctime>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/in.h>

@@ -3,7 +3,7 @@
 
 #include <string>
 #include <unistd.h>
-#include <time.h>
+#include <ctime>
 
 inline double timeval_to_seconds(struct timeval *tv) {
   return tv->tv_sec + double(tv->tv_usec)/1000000;
