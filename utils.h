@@ -1,5 +1,5 @@
-#ifndef DANIELE_UTILS_H
-#define DANIELE_UTILS_H
+#ifndef NETSEC_UTILS_H_
+#define NETSEC_UTILS_H_
 
 #include <string>
 #include <unistd.h>
@@ -15,4 +15,4 @@ inline bool file_exists(const std::string& name) {
 
 std::string get_new_filename(std::string base_name, std::string ext = "");
 
-#endif
+#endif // NETSEC_UTILS_H_
