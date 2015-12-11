@@ -32,10 +32,13 @@ struct flow_stats {
     unsigned long total_data;
 };
 
-map<string,struct flow_stats> flows;
 unsigned long flow_counter = 0;
 
 typedef map<string,struct flow_stats>::iterator map_iter_type;
+
+struct packetHandler_args {
+    map<string,struct flow_stats> *flows;
+};
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet);
 
@@ -87,6 +90,8 @@ int main(int argc, char *argv[]) {
   ofstream outFile;
   string outFile_name, statFile_name;
   time_t tim;
+  map<string,struct flow_stats> flows;
+  struct packetHandler_args pkthandler_args = {&flows};
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
@@ -104,12 +109,12 @@ int main(int argc, char *argv[]) {
       // open capture file for offline processing
       descr = pcap_open_offline(in_file, errbuf);
       if (descr == NULL) {
-          cerr << "pcap_open_offline() failed on file " << argv[i] << ": " << errbuf << endl;
+          cerr << "pcap_open_offline() failed on file " << in_file << ": " << errbuf << endl;
           return 1;
       }
 
       // start packet processing loop, just like live capture
-      if (pcap_loop(descr, 0, packetHandler, NULL) < 0) {
+      if (pcap_loop(descr, 0, packetHandler, (u_char *)&pkthandler_args) < 0) {
           cerr << "pcap_loop() failed: " << pcap_geterr(descr) << endl;
           return 1;
       }
@@ -138,6 +143,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   unsigned long current_flow;
   struct flow_stats *current_flow_stats_ptr;
   struct flow_stats tmp_flow_stats;
+  struct packetHandler_args* args = (struct packetHandler_args *)userData;
 
   ipHeader = (struct ip*)packet;
   inet_ntop(AF_INET, &(ipHeader->ip_src), sourceIp, INET_ADDRSTRLEN);
@@ -160,7 +166,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   // Get pointer to the flow_stats struct in flows map that has the key equal
   // to the current fivetuple, or create a new struct if the key is not in the map
   tmp_flow_stats = {flow_counter, pkthdr->ts, pkthdr->ts, 0L, 0L};
-  ret_value = flows.emplace(fivetuple, tmp_flow_stats);
+  ret_value = args->flows->emplace(fivetuple, tmp_flow_stats);
   if (ret_value.second) {
       flow_counter++;
   }
