@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <ctime>
 
-void timeval_sub(struct timeval* beginning, struct timeval *end,
+void timeval_sub(const struct timeval* beginning, const struct timeval *end,
                  struct timeval* res) {
     res->tv_sec = end->tv_sec - beginning->tv_sec;
     res->tv_usec = end->tv_usec - beginning->tv_usec;

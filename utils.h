@@ -6,7 +6,7 @@
 #include <ctime>
 
 // Convert a timeval structure to seconds (float)
-inline double timeval_to_seconds(struct timeval *tv) {
+inline double timeval_to_seconds(const struct timeval *tv) {
   return tv->tv_sec + double(tv->tv_usec)/1000000;
 }
 
@@ -16,7 +16,7 @@ inline double timeval_to_seconds(struct timeval *tv) {
 // range 0 to 999,999.
 //
 // This definition is taken from the timersub manpage (bsd).
-void timeval_sub(struct timeval* beginning, struct timeval *end,
+void timeval_sub(const struct timeval* beginning, const struct timeval *end,
                  struct timeval* res);
 
 inline bool file_exists(const std::string& name) {
