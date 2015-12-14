@@ -3,7 +3,7 @@ LIBS=-lpcap
 
 all: get_flow_stats
 
-get_flow_stats: get_flow_stats.cpp utils.o
+get_flow_stats: get_flow_stats.cpp utils.o FlowStats.o FlowStatsTable.o
 	g++ $^ -o $@ $(LIBS) -std=c++11
 
 FlowStats.o: FlowStats.cpp FlowStats.h

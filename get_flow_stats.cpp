@@ -20,6 +20,7 @@
 #include <netinet/udp.h>
 #include <arpa/inet.h>
 
+#include "FlowStatsTable.h"
 #include "utils.h"
 
 using namespace std;
@@ -37,7 +38,7 @@ unsigned long flow_counter = 0;
 typedef map<string,struct flow_stats>::iterator map_iter_type;
 
 struct packetHandler_args {
-    map<string,struct flow_stats> *flows;
+    FlowStatsTable *flow_table;
 };
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet);
@@ -84,14 +85,11 @@ int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
   const char *in_file = "";
-  float flow_duration;
-  float pkts_per_sec;
-  float bytes_per_sec;
-  ofstream outFile;
+  ofstream outFile, statFile;
   string outFile_name, statFile_name;
-  time_t tim;
-  map<string,struct flow_stats> flows;
-  struct packetHandler_args pkthandler_args = {&flows};
+  time_t curr_time;
+  FlowStatsTable flow_table;
+  struct packetHandler_args pkthandler_args = {&flow_table};
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
@@ -103,8 +101,8 @@ int main(int argc, char *argv[]) {
 
   for (int i=1; i<argc; i++) {
       in_file = argv[i];
-      time(&tim);
-      outFile << ctime(&tim) << " Processing file " << i << ": " << in_file << endl;
+      time(&curr_time);
+      outFile << ctime(&curr_time) << " Processing file " << i << ": " << in_file << endl;
 
       // open capture file for offline processing
       descr = pcap_open_offline(in_file, errbuf);
@@ -122,11 +120,15 @@ int main(int argc, char *argv[]) {
       pcap_close(descr);
   }
 
-  time(&tim);
-  outFile << ctime(&tim) << " Starting generation of flow stats" << endl;
+  time(&curr_time);
+  outFile << ctime(&curr_time) << " Starting generation of flow stats" << endl;
 
   statFile_name = get_new_filename("flow_stats");
-  generate_stats_file(statFile_name, &flows);
+  statFile.open(statFile_name);
+  flow_table.print_all_flows(statFile);
+  statFile.close();
+
+  outFile.close();
 
   return 0;
 }
@@ -140,7 +142,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   u_int sourcePort = 0, destPort = 0;
   string fivetuple;
   pair<map_iter_type,bool> ret_value;
-  unsigned long current_flow;
+  unsigned long current_flow_id;
   struct flow_stats *current_flow_stats_ptr;
   struct flow_stats tmp_flow_stats;
   struct packetHandler_args* args = (struct packetHandler_args *)userData;
@@ -161,23 +163,15 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
       destPort = ntohs(udpHeader->dest);
   }
 
-  fivetuple = create_fivetuple_id(sourceIp, destIp, (int)ipHeader->ip_p, sourcePort, destPort);
+  fivetuple = create_fivetuple_id(sourceIp, destIp, (int)ipHeader->ip_p,
+                                  sourcePort, destPort);
 
-  // Get pointer to the flow_stats struct in flows map that has the key equal
-  // to the current fivetuple, or create a new struct if the key is not in the map
-  tmp_flow_stats = {flow_counter, pkthdr->ts, pkthdr->ts, 0L, 0L};
-  ret_value = args->flows->emplace(fivetuple, tmp_flow_stats);
-  if (ret_value.second) {
-      flow_counter++;
-  }
-  current_flow_stats_ptr = &ret_value.first->second;
-  current_flow_stats_ptr->count++;
-  current_flow_stats_ptr->last_ts = pkthdr->ts;
-  current_flow_stats_ptr->total_data = pkthdr->len;
-  current_flow = current_flow_stats_ptr->id;
+  current_flow_id = args->flow_table->register_new_packet(fivetuple,
+                                                          &pkthdr->ts,
+                                                          pkthdr->len);
 
-  output_packet_description(cout, current_flow, sourceIp, destIp, (int)ipHeader->ip_p,
-                            sourcePort, destPort, pkthdr);
+  output_packet_description(cout, current_flow_id, sourceIp, destIp,
+                            (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
 
 }
 
