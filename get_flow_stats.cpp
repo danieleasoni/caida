@@ -33,54 +33,27 @@ struct flow_stats {
     unsigned long total_data;
 };
 
-unsigned long flow_counter = 0;
-
-typedef map<string,struct flow_stats>::iterator map_iter_type;
-
+// Arguments passed to the packetHandler function (see below).
+// In particular, a pointer to such a struct is passed as the userData param.
 struct packetHandler_args {
     FlowStatsTable *flow_table;
 };
 
-void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet);
+// This function handles a single packet, and is used by the pcap_loop function
+void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
+                   const u_char* packet);
 
-string create_fivetuple_id(const char *sourceIp, const char *destIp, int ipProto,
-                           u_int sourcePort, u_int destPort, bool forward=true) {
-  stringstream sstm;
-  if (forward)
-      sstm << sourceIp << "#" << destIp << "#" << ipProto << "#" << sourcePort << "#" << destPort;
-  else
-      sstm << destIp << "#" << sourceIp << "#" << ipProto << "#" << destPort << "#" << sourcePort;
-  return sstm.str();
-}
+// Creates a string representing the fivetuple provided (to identify a flow)
+string create_fivetuple_id(const char *sourceIp, const char *destIp,
+                           int ipProto, u_int sourcePort, u_int destPort);
 
-void generate_stats_file(const string filename, map<string, struct flow_stats> *flows) {
-  float flow_duration;
-  float pkts_per_sec;
-  float bytes_per_sec;
-  ofstream statFile;
-  statFile.open(filename);
-  for (map_iter_type iterator = flows->begin(); iterator != flows->end(); iterator++) {
-      flow_duration = timeval_to_seconds(&(iterator->second.last_ts)) - timeval_to_seconds(&(iterator->second.first_ts));
-      pkts_per_sec = iterator->second.count / flow_duration;
-      bytes_per_sec = iterator->second.total_data / flow_duration;
-      statFile << iterator->second.id << "\t" << iterator->second.count << "\t" << flow_duration << "\t" << pkts_per_sec << "\t" << bytes_per_sec << endl;
-  }
-  statFile.close();
-}
-
-void output_packet_description(ostream &out, unsigned long flowid, char *sourceIp, char *destIp,
+void output_packet_description(ostream &out, unsigned long flowid,
+                               char *sourceIp, char *destIp,
                                int ipProto, u_int sourcePort, u_int destPort,
-                               const struct pcap_pkthdr* pkthdr, bool forward=true) {
-  if (forward)
-      out << flowid << "\t" << sourceIp << "\t" << destIp << "\t"
-          << ipProto << "\t" << sourcePort << "\t" << destPort << "\t>\t";
-  else
-      out << flowid << "\t" << destIp << "\t" << sourceIp << "\t"
-          << ipProto << "\t" << destPort << "\t" << sourcePort << "\t<\t";
+                               const struct pcap_pkthdr* pkthdr);
 
-  out << pkthdr->len << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
-}
-
+// main: processes the pcap files provided as command line arguments,
+// and extrapolates the flows and statistics about them.
 int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
@@ -141,10 +114,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   char destIp[INET_ADDRSTRLEN];
   u_int sourcePort = 0, destPort = 0;
   string fivetuple;
-  pair<map_iter_type,bool> ret_value;
   unsigned long current_flow_id;
-  struct flow_stats *current_flow_stats_ptr;
-  struct flow_stats tmp_flow_stats;
   struct packetHandler_args* args = (struct packetHandler_args *)userData;
 
   ipHeader = (struct ip*)packet;
@@ -173,5 +143,23 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   output_packet_description(cout, current_flow_id, sourceIp, destIp,
                             (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
 
+}// end main
+
+string create_fivetuple_id(const char *sourceIp, const char *destIp,
+                           int ipProto, u_int sourcePort, u_int destPort) {
+  stringstream sstm;
+  sstm << sourceIp << "#" << destIp << "#" << ipProto << "#" << sourcePort
+       << "#" << destPort;
+  return sstm.str();
+}
+
+void output_packet_description(ostream &out, unsigned long flowid,
+                               char *sourceIp, char *destIp,
+                               int ipProto, u_int sourcePort, u_int destPort,
+                               const struct pcap_pkthdr* pkthdr) {
+  out << flowid << "\t" << sourceIp << "\t" << destIp << "\t"
+      << ipProto << "\t" << sourcePort << "\t" << destPort << "\t>\t";
+
+  out << pkthdr->len << "\t" << pkthdr->ts.tv_sec << "\t" << pkthdr->ts.tv_usec << endl;
 }
 
