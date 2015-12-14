@@ -13,9 +13,9 @@ typedef map<string,shared_ptr<FlowStats> >::iterator map_it_type;
 
 FlowStatsTable::FlowStatsTable() {}
 
-void FlowStatsTable::register_new_packet(const string fivetuple,
-                                         const struct timeval *ts,
-                                         unsigned long num_bytes) {
+unsigned long FlowStatsTable::register_new_packet(const string fivetuple,
+                                                  const struct timeval *ts,
+                                                  unsigned long num_bytes) {
     pair<map_it_type,bool> emplace_result;
 
     auto flow_stat = _table.find(fivetuple);
@@ -24,6 +24,7 @@ void FlowStatsTable::register_new_packet(const string fivetuple,
                 new FlowStats(_id_counter, *ts, num_bytes));
         emplace_result = _table.emplace(fivetuple, flow_stats_ptr);
         assert (emplace_result.second); // The key must be newly inserted
+        flow_stat = emplace_result.first; // Get iterator at new element
         _id_counter++; // Increase the flow id counter
     } else if (flow_stat->second->is_expired(ts)) {
         _expired_flows.push_back(flow_stat->second);
@@ -31,7 +32,7 @@ void FlowStatsTable::register_new_packet(const string fivetuple,
         // Recursive call after the expired flow has been removed.
         // Could be made more efficient by repeating the code above, or by
         // doing some additional checks.
-        register_new_packet(fivetuple, ts, num_bytes);
+        return register_new_packet(fivetuple, ts, num_bytes);
     } else {
        flow_stat->second->register_packet(ts, num_bytes);
     }
@@ -41,6 +42,7 @@ void FlowStatsTable::register_new_packet(const string fivetuple,
         _last_change_ts = *ts;
     }
     _changed_after_last_expiration = true;
+    return flow_stat->second->get_id();
 }
 
 void FlowStatsTable::erase_expired_flows() {

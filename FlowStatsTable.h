@@ -32,9 +32,10 @@ public:
     }
 
     // Add a new packet to the statistics of the flow it belongs to.
-    void register_new_packet(const std::string fivetuple,
-                             const struct timeval *ts,
-                             unsigned long num_bytes);
+    // Returns the id of the flow of the packet.
+    unsigned long register_new_packet(const std::string fivetuple,
+                                      const struct timeval *ts,
+                                      unsigned long num_bytes);
     // Clean up all expired flows
     void erase_expired_flows();
 

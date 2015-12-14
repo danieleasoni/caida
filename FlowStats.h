@@ -19,7 +19,12 @@ public:
               unsigned long first_bytes);
 
     // Check if a flow is expired at the time provided
-    bool is_expired (const struct timeval *at_time=NULL) const;
+    bool is_expired(const struct timeval *at_time=NULL) const;
+
+    // Return the id of the flow
+    unsigned long get_id() const {
+        return _id;
+    }
 
     // Return the duration of the flow (so far) in seconds
     float get_flow_duration () const;
