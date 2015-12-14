@@ -52,3 +52,16 @@ int FlowStatsTable::collect_expired_flows(const struct timeval *at_time) {
     }
 }
 
+std::ostream& FlowStatsTable::print_expired_flows(std::ostream &strm) {
+    for (auto it = _expired_flows.begin(); it != _expired_flows.end(); ++it) {
+        strm << **it << endl;
+    }
+    return strm;
+}
+
+std::ostream& FlowStatsTable::print_all_flows(std::ostream &strm) {
+    for (auto it = _table.begin(); it != _table.end(); ++it) {
+        strm << *(it->second) << endl;
+    }
+    return strm;
+}

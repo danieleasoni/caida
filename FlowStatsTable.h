@@ -4,6 +4,7 @@
 #include <ctime>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <vector>
 
 #include "FlowStats.h"
@@ -42,6 +43,10 @@ public:
     // If a pointer to a timeval is provided in at_time, this will be used
     // as current time to determine whether a flow is expired or not.
     int collect_expired_flows(const struct timeval *at_time=NULL);
+
+    std::ostream& print_expired_flows(std::ostream &strm);
+
+    std::ostream& print_all_flows(std::ostream &strm);
 
 };
 
