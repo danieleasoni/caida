@@ -104,7 +104,8 @@ int main(int argc, char *argv[]) {
   outFile.close();
 
   return 0;
-}
+}// end main
+
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
   const struct ip* ipHeader;
@@ -143,7 +144,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
   output_packet_description(cout, current_flow_id, sourceIp, destIp,
                             (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
 
-}// end main
+}
 
 string create_fivetuple_id(const char *sourceIp, const char *destIp,
                            int ipProto, u_int sourcePort, u_int destPort) {
