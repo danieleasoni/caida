@@ -1,5 +1,8 @@
 # Install libpcap
 sudo apt-get install libpcap-dev
 
+# Install boost (for c++)
+sudo apt-get install libboost-all-dev
+
 # SciPy full stack: https://www.scipy.org/install.html
 sudo apt-get install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose
