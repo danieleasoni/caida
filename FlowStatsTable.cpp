@@ -5,6 +5,8 @@
 #include <utility> // For std::move
 #include <cassert>
 
+#include "utils.h"
+
 using namespace std;
 
 typedef map<string,shared_ptr<FlowStats> >::iterator map_it_type;
@@ -33,6 +35,12 @@ void FlowStatsTable::register_new_packet(const string fivetuple,
     } else {
        flow_stat->second->register_packet(ts, num_bytes);
     }
+
+    // Keep track of the most recent timestamp
+    if (timeval_to_seconds(ts) > timeval_to_seconds(&_last_change_ts)) {
+        _last_change_ts = *ts;
+    }
+    _changed_after_last_expiration = true;
 }
 
 void FlowStatsTable::erase_expired_flows() {
@@ -40,6 +48,9 @@ void FlowStatsTable::erase_expired_flows() {
 }
 
 int FlowStatsTable::collect_expired_flows(const struct timeval *at_time) {
+    if (at_time == NULL and !_changed_after_last_expiration) {
+        return _expired_flows.size();
+    }
     if (at_time == NULL and
             !(_last_change_ts.tv_sec == 0 and _last_change_ts.tv_usec == 0)) {
         at_time = &_last_change_ts;
@@ -50,6 +61,8 @@ int FlowStatsTable::collect_expired_flows(const struct timeval *at_time) {
             _table.erase(it++);
         }
     }
+    _changed_after_last_expiration = false;
+    return _expired_flows.size();
 }
 
 std::ostream& FlowStatsTable::print_expired_flows(std::ostream &strm) {
