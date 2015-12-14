@@ -1,27 +1,49 @@
 #ifndef NETSEC_FLOWSTATS_TABLE_H_
 #define NETSEC_FLOWSTATS_TABLE_H_
 
+#include <ctime>
+#include <map>
+#include <memory>
+#include <vector>
+
 #include "FlowStats.h"
 
+// FlowStatsTable keeps track of flow statistics: it registers new packets,
+// considering them for the stats of the flow those packets belong to, and it
+// expires old flows.
 class FlowStatsTable {
-    map<std::string,FlowStats *> _table;
-    FlowStats *_last_change = NULL;
-    std::vector<FlowStats *> _expired_flows;
-
-    void collect_expired_flows();
+    // Underlying map containing the flow stats for all flows.
+    // Flows are identified through a string containing the flow's fivetuple.
+    std::map<std::string,std::shared_ptr<FlowStats> > _table;
+    struct timeval _last_change_ts = {0, 0};
+    std::vector<std::shared_ptr<FlowStats> > _expired_flows;
+    // Counter to incrementally generate the flow ids
+    unsigned long _id_counter = 0;
+    // Flag which indicates whether any new packet/flow has been considered
+    // after the last time collect_expired_flows was called
+    bool _changed_after_last_expiration = false;
 
 public:
     FlowStatsTable();
-    ~FlowStatsTable();
 
-    FlowStats *get_last_change() {
-        return _last_change;
+    const struct timeval& get_last_change_ts() {
+        return _last_change_ts;
     }
 
-    void register_new_packet(std::string fivetuple, const struct timeval *ts,
+    // Add a new packet to the statistics of the flow it belongs to.
+    void register_new_packet(const std::string fivetuple,
+                             const struct timeval *ts,
                              unsigned long num_bytes);
+    // Clean up all expired flows
     void erase_expired_flows();
-}
+
+    // Check all flows to find the expired ones, and return the number of all
+    // currently expired flows.
+    // If a pointer to a timeval is provided in at_time, this will be used
+    // as current time to determine whether a flow is expired or not.
+    int collect_expired_flows(const struct timeval *at_time=NULL);
+
+};
 
 
 #endif //NETSEC_FLOWSTATS_TABLE_H_
