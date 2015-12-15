@@ -17,7 +17,7 @@ FlowStats::FlowStats(unsigned long id, struct timeval first_ts,
 bool FlowStats::is_expired(const struct timeval *at_time) const {
     struct timeval time_diff;
     if (at_time == NULL) at_time = &_last_ts;
-    timeval_sub(at_time, &_first_ts, &time_diff);
+    timeval_sub(&_first_ts, at_time, &time_diff);
     return (time_diff.tv_sec >= NSConstants::MaxFlowLifetime);
 }
 
