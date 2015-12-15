@@ -61,6 +61,8 @@ int FlowStatsTable::collect_expired_flows(const struct timeval *at_time) {
         if (it->second->is_expired(at_time)) {
             _expired_flows.push_back(it->second);
             _table.erase(it++);
+        } else {
+            ++it;
         }
     }
     _changed_after_last_expiration = false;
