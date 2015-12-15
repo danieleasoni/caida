@@ -61,10 +61,13 @@ int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
   ofstream packet_out, statFile;
-  string statFile_name;
   time_t curr_time;
   FlowStatsTable flow_table;
   struct packetHandler_args pkthandler_args = {&flow_table, &cout};
+  path packet_output_dir (absolute("data_output/packets"));
+  path flow_stats_output_dir (absolute("data_output/flow_stats"));
+  create_directories(packet_output_dir);
+  create_directories(flow_stats_output_dir);
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
@@ -84,6 +87,7 @@ int main(int argc, char *argv[]) {
                << " does not exist, skipping.." << endl;
           continue;
       }
+
       cout << ctime(&curr_time) << " Processing file " << i << ": "
            << in_file << endl;
 
@@ -96,29 +100,35 @@ int main(int argc, char *argv[]) {
       }
 
       // get new output file for packet list output
-      path packet_output_file = absolute("data_output/packet" /
+      path packet_output_file (packet_output_dir /
           in_file.stem().replace_extension(".processed_pcap"));
-      create_directories(packet_output_file.parent_path());
       packet_out.open(packet_output_file.string());
       pkthandler_args.packet_out = &packet_out;
 
-      // start packet processing loop, just like live capture
+      // Start packet processing loop, just like live capture.
+      // For each packet, packetHandler is called to process it
       if (pcap_loop(descr, 0, packetHandler, (u_char *)&pkthandler_args) < 0) {
           cerr << "pcap_loop() failed: " << pcap_geterr(descr) << endl;
           return 1;
       }
-
       pcap_close(descr);
       packet_out.close();
+
+      time(&curr_time);
+      cout << ctime(&curr_time) << " Storing stats of expired flows" << endl;
+
+      // get new output file for the stats of expired flows
+      path flow_stats_output_file (flow_stats_output_dir /
+          in_file.stem().replace_extension(".expired_flows"));
+      statFile.open(flow_stats_output_file.string());
+
+      // Check expired flows, write their stats to file, and delete the entries
+      if (flow_table.collect_expired_flows() > 0) {
+          flow_table.print_expired_flows(statFile);
+          flow_table.erase_expired_flows();
+      }
+      statFile.close();
   }
-
-  time(&curr_time);
-  cout << ctime(&curr_time) << " Starting generation of flow stats" << endl;
-
-  statFile_name = get_new_filename("flow_stats");
-  statFile.open(statFile_name);
-  flow_table.print_all_flows(statFile);
-  statFile.close();
 
   return 0;
 }// end main
