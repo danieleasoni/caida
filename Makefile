@@ -1,5 +1,5 @@
 
-LIBS=-lpcap
+LIBS=-lpcap -lboost_system -lboost_filesystem
 
 all: get_flow_stats
 

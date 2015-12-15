@@ -19,11 +19,13 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <arpa/inet.h>
+#include <boost/filesystem.hpp>
 
 #include "FlowStatsTable.h"
 #include "utils.h"
 
 using namespace std;
+using namespace boost::filesystem;
 
 struct flow_stats {
     unsigned long id;
@@ -73,12 +75,18 @@ int main(int argc, char *argv[]) {
   outFile.open(outFile_name);
 
   for (int i=1; i<argc; i++) {
-      in_file = argv[i];
+      path in_file (argv[i]);
       time(&curr_time);
-      outFile << ctime(&curr_time) << " Processing file " << i << ": " << in_file << endl;
+      if (!is_regular_file(in_file)) {
+          outFile << ctime(&curr_time) << " Error: " << in_file
+                  << " does not exist, skipping.." << endl;
+          continue;
+      }
+      outFile << ctime(&curr_time) << " Processing file " << i << ": "
+              << in_file << endl;
 
       // open capture file for offline processing
-      descr = pcap_open_offline(in_file, errbuf);
+      descr = pcap_open_offline(in_file.string().c_str(), errbuf);
       if (descr == NULL) {
           cerr << "pcap_open_offline() failed on file " << in_file << ": " << errbuf << endl;
           return 1;
