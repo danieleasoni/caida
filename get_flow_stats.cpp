@@ -96,8 +96,7 @@ int main(int argc, char *argv[]) {
       }
 
       // get new output file for packet list output
-      path packet_output_dir ("data_output/packet");
-      path packet_output_file = absolute(packet_output_dir /
+      path packet_output_file = absolute("data_output/packet" /
           in_file.stem().replace_extension(".processed_pcap"));
       create_directories(packet_output_file.parent_path());
       packet_out.open(packet_output_file.string());
