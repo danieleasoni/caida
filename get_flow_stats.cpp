@@ -39,6 +39,7 @@ struct flow_stats {
 // In particular, a pointer to such a struct is passed as the userData param.
 struct packetHandler_args {
     FlowStatsTable *flow_table;
+    ostream *packet_out;
 };
 
 // This function handles a single packet, and is used by the pcap_loop function
@@ -59,18 +60,24 @@ void output_packet_description(ostream &out, unsigned long flowid,
 int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
-  const char *in_file = "";
-  ofstream outFile, statFile;
+  ofstream outFile, packet_out, statFile;
   string outFile_name, statFile_name;
   time_t curr_time;
   FlowStatsTable flow_table;
-  struct packetHandler_args pkthandler_args = {&flow_table};
+  struct packetHandler_args pkthandler_args = {&flow_table, &cout};
 
   if (argc < 2) {
       cerr << "Usage: " << argv[0] << " pcap_file..." << endl;
       return 1;
   }
 
+  // Set failing bits for all fstream's
+  // (by default one would have to check manually if if the fstream has failed)
+  outFile.exceptions(ofstream::failbit | ofstream::badbit);
+  packet_out.exceptions(ofstream::failbit | ofstream::badbit);
+  statFile.exceptions(ofstream::failbit | ofstream::badbit);
+
+  // Open file for reporting the processing status
   outFile_name = get_new_filename("processing_status", ".tmp");
   outFile.open(outFile_name);
 
@@ -88,9 +95,18 @@ int main(int argc, char *argv[]) {
       // open capture file for offline processing
       descr = pcap_open_offline(in_file.string().c_str(), errbuf);
       if (descr == NULL) {
-          cerr << "pcap_open_offline() failed on file " << in_file << ": " << errbuf << endl;
+          cerr << "pcap_open_offline() failed on file " << in_file << ": "
+               << errbuf << endl;
           return 1;
       }
+
+      // get new output file for packet list output
+      path packet_output_dir ("data_output/packet");
+      path packet_output_file = absolute(packet_output_dir /
+          in_file.stem().replace_extension(".processed_pcap"));
+      create_directories(packet_output_file.parent_path());
+      packet_out.open(packet_output_file.string());
+      pkthandler_args.packet_out = &packet_out;
 
       // start packet processing loop, just like live capture
       if (pcap_loop(descr, 0, packetHandler, (u_char *)&pkthandler_args) < 0) {
@@ -99,6 +115,7 @@ int main(int argc, char *argv[]) {
       }
 
       pcap_close(descr);
+      packet_out.close();
   }
 
   time(&curr_time);
@@ -149,7 +166,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
                                                           &pkthdr->ts,
                                                           pkthdr->len);
 
-  output_packet_description(cout, current_flow_id, sourceIp, destIp,
+  output_packet_description(*(args->packet_out), current_flow_id, sourceIp, destIp,
                             (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
 
 }
