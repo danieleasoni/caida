@@ -60,8 +60,8 @@ void output_packet_description(ostream &out, unsigned long flowid,
 int main(int argc, char *argv[]) {
   pcap_t *descr;
   char errbuf[PCAP_ERRBUF_SIZE];
-  ofstream outFile, packet_out, statFile;
-  string outFile_name, statFile_name;
+  ofstream packet_out, statFile;
+  string statFile_name;
   time_t curr_time;
   FlowStatsTable flow_table;
   struct packetHandler_args pkthandler_args = {&flow_table, &cout};
@@ -73,24 +73,19 @@ int main(int argc, char *argv[]) {
 
   // Set failing bits for all fstream's
   // (by default one would have to check manually if if the fstream has failed)
-  outFile.exceptions(ofstream::failbit | ofstream::badbit);
   packet_out.exceptions(ofstream::failbit | ofstream::badbit);
   statFile.exceptions(ofstream::failbit | ofstream::badbit);
-
-  // Open file for reporting the processing status
-  outFile_name = get_new_filename("processing_status", ".tmp");
-  outFile.open(outFile_name);
 
   for (int i=1; i<argc; i++) {
       path in_file (argv[i]);
       time(&curr_time);
       if (!is_regular_file(in_file)) {
-          outFile << ctime(&curr_time) << " Error: " << in_file
-                  << " does not exist, skipping.." << endl;
+          cerr << ctime(&curr_time) << " Warning: " << in_file
+               << " does not exist, skipping.." << endl;
           continue;
       }
-      outFile << ctime(&curr_time) << " Processing file " << i << ": "
-              << in_file << endl;
+      cout << ctime(&curr_time) << " Processing file " << i << ": "
+           << in_file << endl;
 
       // open capture file for offline processing
       descr = pcap_open_offline(in_file.string().c_str(), errbuf);
@@ -119,14 +114,12 @@ int main(int argc, char *argv[]) {
   }
 
   time(&curr_time);
-  outFile << ctime(&curr_time) << " Starting generation of flow stats" << endl;
+  cout << ctime(&curr_time) << " Starting generation of flow stats" << endl;
 
   statFile_name = get_new_filename("flow_stats");
   statFile.open(statFile_name);
   flow_table.print_all_flows(statFile);
   statFile.close();
-
-  outFile.close();
 
   return 0;
 }// end main
