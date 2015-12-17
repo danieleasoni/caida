@@ -3,6 +3,7 @@
 
 #include <ctime>
 #include <ostream>
+#include <vector>
 
 /* FlowStats contains the main statistics of a flow */
 class FlowStats {
@@ -12,6 +13,8 @@ class FlowStats {
     struct timeval _last_ts; // Timestamp of the last packet
     unsigned long _pkt_count; // Total number of packet seen for this flow
     unsigned long _total_bytes; // Total number of bytes seen for this flow
+    std::vector<unsigned int> _pkt_count_per_second;
+    std::vector<unsigned long> _total_bytes_per_second;
 
 public:
     // Fast constructor that takes the information about the first packet
