@@ -27,6 +27,7 @@ unsigned long FlowStatsTable::register_new_packet(const string fivetuple,
         flow_stat = emplace_result.first; // Get iterator at new element
         _id_counter++; // Increase the flow id counter
     } else if (flow_stat->second->is_expired(ts)) {
+        flow_stat->second->mark_as_expired();
         _expired_flows.push_back(flow_stat->second);
         _table.erase(flow_stat);
         // Recursive call after the expired flow has been removed.
@@ -59,6 +60,7 @@ int FlowStatsTable::collect_expired_flows(const struct timeval *at_time) {
     }
     for (auto it = _table.begin(); it != _table.end(); /*in-code*/) {
         if (it->second->is_expired(at_time)) {
+            it->second->mark_as_expired();
             _expired_flows.push_back(it->second);
             _table.erase(it++);
         } else {

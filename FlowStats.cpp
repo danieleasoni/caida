@@ -28,6 +28,7 @@ FlowStats::FlowStats(unsigned long id, struct timeval first_ts,
 
 bool FlowStats::is_expired(const struct timeval *at_time) const {
     struct timeval time_diff;
+    if (_expired_flag) return true;
     if (at_time == NULL) at_time = &_last_ts;
     timeval_sub(&_first_ts, at_time, &time_diff);
     return (time_diff.tv_sec >= NSConstants::MaxFlowLifetime);
@@ -37,8 +38,24 @@ float FlowStats::get_flow_duration() const {
     return timeval_to_seconds(&_last_ts) - timeval_to_seconds(&_first_ts);
 }
 
+void FlowStats::mark_as_expired() {
+    if (_expired_flag) return;
+    while (_pkt_count_per_second.back() == 0) {
+        _pkt_count_per_second.pop_back();
+    }
+    cout << "Popped pkt counts, remaining: " << _pkt_count_per_second.size() << endl;
+    while (_total_bytes_per_second.back() == 0) {
+        _total_bytes_per_second.pop_back();
+    }
+    cout << "Popped bytes counts, remaining: " << _total_bytes_per_second.size() << endl;
+    _expired_flag = true;
+}
+
 void FlowStats::register_packet(const struct timeval *ts,
                                 unsigned long num_bytes) {
+    if (_expired_flag) {
+        throw FlowExpiredException("Cannot register packet on expired flow");
+    }
     _last_ts = *ts;
     _pkt_count += 1;
     _total_bytes += num_bytes;
