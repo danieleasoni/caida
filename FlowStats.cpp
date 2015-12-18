@@ -43,11 +43,9 @@ void FlowStats::mark_as_expired() {
     while (_pkt_count_per_second.back() == 0) {
         _pkt_count_per_second.pop_back();
     }
-    cout << "Popped pkt counts, remaining: " << _pkt_count_per_second.size() << endl;
     while (_total_bytes_per_second.back() == 0) {
         _total_bytes_per_second.pop_back();
     }
-    cout << "Popped bytes counts, remaining: " << _total_bytes_per_second.size() << endl;
     _expired_flag = true;
 }
 
