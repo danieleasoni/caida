@@ -15,8 +15,8 @@ CONVERTERS = {3 : lambda s: float(s if s != 'inf' else -1),
 
 BANDWIDTH_PPS_BINS = NP.linspace(0, 20, num=100)
 BANDWIDTH_BPS_BINS = NP.linspace(0, 20, num=100)
-LIFETIME_BINS = NP.linspace(0, 20, num=100)
-SCATTER_SAMPLE_SIZE = 25000
+LIFETIME_BINS = NP.linspace(0, 60, num=100)
+SCATTER_SAMPLE_SIZE = 250000
 
 def get_new_filename(base, ext="", with_time=False):
     if with_time:
@@ -32,7 +32,7 @@ def get_new_filename(base, ext="", with_time=False):
 #    assert type(col_num) is IntType, "col_num is not an integer: %r" % col_num
 #    return NP.loadtxt(data_file, delimiter=delimiter, converters=converters, usecols=(col_num,))
 
-def generate_hist_and_save(x, filename, bins=None, generate_pdf=False):
+def generate_hist_and_save(x, filename, bins=50, generate_pdf=False):
     # Generate and save normal histograms
     filename = get_new_filename(os.path.join(OUTDIR, filename), ".eps")
     fig = plt.hist(x, bins=bins)
@@ -64,8 +64,8 @@ def generate_lifetime_bandwidth_scatter(lifetime, bandwidth, num_samples=None,
     ax = plt.gca()
     ax.set_yscale('log')
     ax.set_xscale('log')
-    ax.set_xlim([0.05, 5000])
-    ax.set_ylim([0.0004, 300])
+    ax.set_xlim([0.005, 62])
+#    ax.set_ylim([0.0004, 300])
     plt.xlabel(xlabel, fontsize=16)
     plt.ylabel(ylabel, fontsize=16)
     plt.savefig(filename)
@@ -74,12 +74,14 @@ def generate_lifetime_bandwidth_scatter(lifetime, bandwidth, num_samples=None,
     filename = get_new_filename(os.path.join(OUTDIR, "lifetime_vs_bw_heat"), ".pdf")
     fig = plt.hexbin(lifetime, bandwidth, norm=matplotlib.colors.LogNorm(), linewidths=(0,),
             xscale='log', yscale='log', cmap=plt.cm.YlOrRd)
+            #cmap=plt.cm.YlOrRd)
     ax = plt.gca()
     PCM=ax.get_children()[2]
     ax.set_yscale('log')
     ax.set_xscale('log')
-    ax.set_xlim([0.05, 5000])
-    ax.set_ylim([0.0004, 300])
+    ax.set_xlim([0.005, 62])
+#    ax.set_xlim([0.05, 5000])
+#    ax.set_ylim([0.0004, 300])
     cb = plt.colorbar(PCM, ax=ax)
     cb.set_label('# samples (out of ' + str(SCATTER_SAMPLE_SIZE) + ')')
     plt.xlabel(xlabel, fontsize=16)
@@ -106,13 +108,15 @@ if __name__ == "__main__":
     data_array = NP.loadtxt(data_file)
 
     # Session lifetime in seconds histogram
-    #generate_hist_and_save(data_array[:,2], "lifetime_sec", bins=LIFETIME_BINS)
+    generate_hist_and_save(data_array[:,1], "lifetime_sec", bins=LIFETIME_BINS)
     # Bandwidth in packets-per-second histogram
     #generate_hist_and_save(data_array[:,3], "bwidth_pps", bins=BANDWIDTH_PPS_BINS)
     # Bandwidth in bytes-per-second histogram
-    #generate_hist_and_save(data_array[:,4], "bwidth_bps", bins=BANDWIDTH_BPS_BINS)
+    generate_hist_and_save(data_array[:,9], "bwidth_bps") #, bins=BANDWIDTH_BPS_BINS)
+    # Scatter plot of lifetime vs number of packets
+    generate_lifetime_bandwidth_scatter(data_array[:,1], data_array[:,2], ylabel='num. of packets per flow', num_samples=SCATTER_SAMPLE_SIZE)
     # Scatter plot of lifetime vs bandwidth
-    generate_lifetime_bandwidth_scatter(data_array[:,2], data_array[:,4], ylabel='bandwidth (bytes per second)', num_samples=SCATTER_SAMPLE_SIZE)
+    generate_lifetime_bandwidth_scatter(data_array[:,1], data_array[:,9], ylabel='bandwidth (bytes per second)', num_samples=SCATTER_SAMPLE_SIZE)
 
     if data_file is not sys.stdin:
         data_file.close()
