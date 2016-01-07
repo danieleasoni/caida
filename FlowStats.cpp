@@ -1,6 +1,7 @@
 #include "FlowStats.h"
 
 #include <iostream>
+#include <boost/array.hpp>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics.hpp>
 
@@ -13,8 +14,7 @@ using namespace boost::accumulators::extract;
 
 typedef accumulator_set<double, stats<tag::min, tag::max, tag::mean,
         tag::median, tag::variance> > stats_acc_t;
-//typedef accumulator_set<double, stats<tag::extended_p_square_quantile> >
-//    quantile_acc_t;
+typedef accumulator_set<double, stats<tag::extended_p_square> > quantile_acc_t;
 
 FlowStats::FlowStats(unsigned long id, struct timeval first_ts,
                      unsigned long first_bytes)
@@ -68,27 +68,35 @@ std::ostream& operator<<(std::ostream &strm, const FlowStats &fs) {
     const char * sep = NSConstants::FIELD_SEPARATOR;
     strm << fs._id << sep << fs.get_flow_duration() << sep;
     strm << fs._pkt_count << sep << fs._total_bytes << sep;
-    // Compute and print statistics
+    // Compute statistics
     stats_acc_t pkt_stats_acc;
     stats_acc_t byte_stats_acc;
-//    boost::array<double> probs = {0.1, 0.25, 0.5, 0.75, 0.9};
-//    quantile_acc_t pkt_quantile_acc (extended_p_square_probabilities = probs);
-//    quantile_acc_t byte_quantile_acc (extended_p_square_probabilities = probs);
+    boost::array<double, 5> probs = {0.1, 0.25, 0.5, 0.75, 0.9};
+    quantile_acc_t pkt_quantile_acc (tag::extended_p_square::probabilities = probs);
+    quantile_acc_t byte_quantile_acc (tag::extended_p_square::probabilities = probs);
     pkt_stats_acc = for_each(fs._pkt_count_per_second.begin(),
                              fs._pkt_count_per_second.end(), pkt_stats_acc);
     byte_stats_acc = for_each(fs._total_bytes_per_second.begin(),
                               fs._total_bytes_per_second.end(), byte_stats_acc);
-//    pkt_quantile_acc = for_each(fs._pkt_count_per_second.begin(),
-//                                fs._pkt_count_per_second.end(), pkt_stats_acc);
-//    byte_quantile_acc = for_each(fs._total_bytes_per_second.begin(),
-//                                 fs._total_bytes_per_second.end(),
-//                                 byte_stats_acc);
+    pkt_quantile_acc = for_each(fs._pkt_count_per_second.begin(),
+                                fs._pkt_count_per_second.end(), pkt_quantile_acc);
+    byte_quantile_acc = for_each(fs._total_bytes_per_second.begin(),
+                                 fs._total_bytes_per_second.end(),
+                                 byte_quantile_acc);
+    // Print packet statistics
     strm << extract::mean(pkt_stats_acc) << sep << sqrt(extract::variance(pkt_stats_acc)) << sep;
     strm << extract::min(pkt_stats_acc) << sep << extract::max(pkt_stats_acc) << sep;
     strm << extract::median(pkt_stats_acc) << sep;
+    for (int i=0; i < probs.size(); ++i) {
+        strm << extended_p_square(pkt_quantile_acc)[i] << sep;
+    }
+    // Print bytes statistics
     strm << extract::mean(byte_stats_acc) << sep << sqrt(extract::variance(byte_stats_acc)) << sep;
     strm << extract::min(byte_stats_acc) << sep << extract::max(byte_stats_acc) << sep;
-    strm << extract::median(byte_stats_acc);
+    strm << extract::median(byte_stats_acc) << sep;
+    for (int i=0; i < probs.size(); ++i) {
+        strm << extended_p_square(byte_quantile_acc)[i] << sep;
+    }
     return strm;
 }
 
