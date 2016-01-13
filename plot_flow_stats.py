@@ -20,7 +20,7 @@ SCATTER_SAMPLE_SIZE = 250000
 LIFETIME_COL = 1
 PKT_COUNT_COL = 2
 TOTAL_BYTES_COL =3
-BANDWIDTH_COL = 9
+BANDWIDTH_COL = 14
 
 def get_new_filename(base, ext="", with_time=False):
     if with_time:
