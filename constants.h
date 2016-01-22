@@ -6,7 +6,9 @@
  * boost.PropertyTree might be used to this end.
  */
 namespace NSConstants {
-    const int MaxFlowLifetime = 60; // Max flow lifetime, in seconds
+    const int MaxFlowLifetime = 3600; // Max flow lifetime, in seconds
+    // Max time of inactivity, in seconds, before a flow is expired
+    const int MaxFlowInactiveTime = 60;
     const char * const FIELD_SEPARATOR = "\t";
 }
 

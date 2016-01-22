@@ -17,8 +17,10 @@ class FlowStats {
     bool _expired_flag = false;
     unsigned long _pkt_count; // Total number of packet seen for this flow
     unsigned long _total_bytes; // Total number of bytes seen for this flow
+#ifdef NETSEC_ADVANCED_FLOW_STATS
     std::vector<unsigned int> _pkt_count_per_second;
     std::vector<unsigned long> _total_bytes_per_second;
+#endif
 
 public:
     // Fast constructor that takes the information about the first packet
