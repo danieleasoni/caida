@@ -220,10 +220,9 @@ def get_data_point_iterator():
 
 if __name__ == "__main__":
     cluster_list = [DataPoint(duration, data)
-                    for duration in [0.01, 0.1, 1, 10, 60]
-                    for data in [100, 1000, 10000, 100000]]
+                    for duration in [0.1, 1, 10, 50, 100]
+                    for data in [10000, 100000]]
     #cluster_list.append(DataPoint(11,210))
-    print(len(cluster_list))
     cost_acc = CostAccumulator(cluster_list)
     for data_point in get_data_point_iterator():
         cost_acc.add_data_point(data_point)
