@@ -2,7 +2,6 @@ from __future__ import print_function
 import sys, os
 import numpy as NP
 from types import *
-import copy
 import time
 import math
 from collections import namedtuple
@@ -15,6 +14,11 @@ TOTAL_BYTES_COL =3
 #BANDWIDTH_COL = 14
 
 IGNORE_1_PKT_FLOWS = True
+IGNORE_0_DURATION_FLOWS = True
+IGNORE_LONG_FLOWS = True
+MAX_FLOW_DURATION = 3000
+IGNORE_LOW_BANDWIDTH_FLOWS = True
+BANDWIDTH_IGNORING_THRESHOLD = 10
 
 ALPHA_DATA_COST = 1
 ALPHA_SLOWDOWN_COST = 1
@@ -88,12 +92,12 @@ class CostAccumulator(object):
         self.unassignable_flows_count = 0
         self.flow_count = 0
 
-    def add_data_point(self, data_point, splitted=False):
+    def add_data_point(self, data_point, count_times=1):
         """
         Consider a new data point, increasing the total counts for original and
         padding data, and for original duration and duration increase.
         """
-        if not splitted:
+        if count_times == 1:
             self.flow_count += 1 # Count original flows, not the splitted ones
         assignment_costs = [None] * len(self.cluster_list)
         # Get the costs of assigning the data point to the different clusters.
@@ -109,28 +113,23 @@ class CostAccumulator(object):
             data_point.cluster_idx = (
                     assignment_costs.index(min([x for x in assignment_costs
                                                 if x is not None])))
-            # Increase the assignment count for the cluster to which the current
-            # data point was added
-            self.cluster_assignment_counts[data_point.cluster_idx] += 1
         else:
-            if splitted or any(map(data_point.bandwidth_fits_in_cluster,
-                                   self.cluster_list)):
+            if count_times > 1 or any(map(data_point.bandwidth_fits_in_cluster,
+                                      self.cluster_list)):
                 # The data point doesn't fit in any cluster, split it into
                 # two data point (two flows) and add both (recursive call),
                 # then return.
-                split_point_1 = DataPoint(data_point.duration / float(2),
+                split_point = DataPoint(data_point.duration / float(2),
                                           data_point.total_data / float(2))
-                split_point_2 = copy.copy(split_point_1)
-                self.add_data_point(split_point_1, splitted=True)
-                self.add_data_point(split_point_2, splitted=True)
+                self.add_data_point(split_point, count_times=count_times*2)
                 # Consider the original data point as assigned to the cluster
                 # to which the to splitted points were assigned
-                data_point.cluster_idx = split_point_1.cluster_idx
-                # Increase the assignment count for the cluster to which the
-                # current data point was added. Increase the count only
-                # once per original data point
-                if not splitted:
-                    self.cluster_assignment_counts[data_point.cluster_idx] += 1
+                data_point.cluster_idx = split_point.cluster_idx
+#                # Increase the assignment count for the cluster to which the
+#                # current data point was added. Increase the count only
+#                # once per original data point
+#                if not splitted:
+#                    self.cluster_assignment_counts[data_point.cluster_idx] += 1
             else:
                 # The data point cannot be assigned because its bandwidth is
                 # too low. Add to the count of unassignable points and return.
@@ -138,15 +137,16 @@ class CostAccumulator(object):
             return
 
         # Add the information of the data point to the cost accumulators.
-        self.tot_original_data += data_point.total_data
-        self.tot_padding_data += (
+        self.tot_original_data += count_times * data_point.total_data
+        self.tot_padding_data += count_times * (
                 self.cluster_list[data_point.cluster_idx].total_data
                 - data_point.total_data)
-        self.tot_original_duration += data_point.duration
-        self.tot_duration_increase += get_absolute_slowdown(data_point,
-                self.cluster_list[data_point.cluster_idx])
+        self.tot_original_duration += count_times * data_point.duration
+        self.tot_duration_increase += count_times * get_absolute_slowdown(
+                data_point, self.cluster_list[data_point.cluster_idx])
         # Increase the assignment count for the cluster to which the current
         # data point was added
+        # TODO Instead of adding 1, count_times could be added
         self.cluster_assignment_counts[data_point.cluster_idx] += 1
 
     def get_total_data_cost(self):
@@ -194,35 +194,45 @@ CLUSTER_LIST = [DataPoint(1,1000, None),
                 DataPoint(60, 100, None),
                 DataPoint(60,10000, None)]
 
+def _get_data_point_iterator_from_file(data_file):
+    for line in data_file:
+        columns = line.split()
+        if IGNORE_1_PKT_FLOWS and int(columns[PKT_COUNT_COL]) < 2:
+            continue
+        if IGNORE_0_DURATION_FLOWS and float(columns[LIFETIME_COL]) <= 0:
+            continue
+        if (IGNORE_LONG_FLOWS and
+                float(columns[LIFETIME_COL]) > MAX_FLOW_DURATION):
+            continue
+        if (IGNORE_LOW_BANDWIDTH_FLOWS and
+            (int(columns[TOTAL_BYTES_COL])
+             < BANDWIDTH_IGNORING_THRESHOLD * float(columns[LIFETIME_COL]))):
+            continue
+        yield DataPoint(float(columns[LIFETIME_COL]),
+                        float(columns[TOTAL_BYTES_COL]))
 
 def get_data_point_iterator():
     if len(sys.argv) < 2:
         print("reading from stdin..")
-        data_file = sys.stdin
+        for dp in _get_data_point_iterator_from_file(sys.stdin):
+            yield dp
     else:
         try:
-            data_file = open(sys.argv[1], 'r')
+            for filename in sys.argv[1:]:
+                data_file = open(filename, 'r')
+
+                for dp in _get_data_point_iterator_from_file(data_file):
+                    yield dp
+
+                if data_file is not sys.stdin:
+                    data_file.close()
         except IOError as e:
             print("Unable to open file", file=sys.stderr)
             print(str(e), file=sys.stderr)
             print(USAGE, file=sys.stderr)
             sys.exit(1)
 
-    for line in data_file:
-        columns = line.split()
-        if IGNORE_1_PKT_FLOWS and int(columns[PKT_COUNT_COL]) < 2:
-            continue
-        yield DataPoint(float(columns[LIFETIME_COL]),
-                        float(columns[TOTAL_BYTES_COL]))
-
-    if data_file is not sys.stdin:
-        data_file.close()
-
-if __name__ == "__main__":
-    cluster_list = [DataPoint(duration, data)
-                    for duration in [0.1, 1, 10, 50, 100]
-                    for data in [10000, 100000]]
-    #cluster_list.append(DataPoint(11,210))
+def compute_and_print_costs(cluster_list=CLUSTER_LIST):
     cost_acc = CostAccumulator(cluster_list)
     for data_point in get_data_point_iterator():
         cost_acc.add_data_point(data_point)
@@ -230,11 +240,40 @@ if __name__ == "__main__":
     print("Total slowdown cost: ", cost_acc.get_total_slowdown_cost())
     print("Unassignable fraction: ", cost_acc.get_unassignable_fraction())
     tot_assigned_flows = sum(cost_acc.cluster_assignment_counts)
-    relative_assignment = [float(x)/tot_assigned_flows
+    relative_assignment = [float(x)#/tot_assigned_flows
                            for x in cost_acc.cluster_assignment_counts]
     print("Cluster assignment counts:")
     for percent, cluster in zip(relative_assignment,
             [(c.duration, c.total_data) for c in cluster_list]):
         print(percent, cluster)
+
+if __name__ == "__main__":
+#    durations = [ [5],
+#                  [10],
+#                  [0.1, 1, 10, 100],
+#                  [0.1, 100],
+#                  [0.1, 0.5, 1, 5, 10, 50, 100],
+#                  [0.1, 1, 10, 50, 100],
+#                  [0.1, 1, 10, 33, 66, 100]
+#                ]
+#    datas = [ [10**3],
+#              [10**4],
+#              [10**5],
+#              [10**3, 10**4],
+#              [10**4, 10**5],
+#              [10**3, 10**4, 10**5],
+#              [10**4, 2 * 10**4],
+#              [10**4, 2 * 10**4, 10**5],
+#              [10**4, 10**5, 10**6]
+#            ]
+    durations = [[0.1], [1], [10], [0.1, 1], [1,10]]
+    datas = [[10**4], [10**5], [10**4, 10**5]]
+    for cluster_list in [[DataPoint(t, d)
+                          for t in duration
+                          for d in data]
+                        for duration in durations
+                        for data in datas]:
+        print("#########################################")
+        compute_and_print_costs(cluster_list)
 
 
