@@ -42,13 +42,13 @@ class DataPoint(object):
         self.total_data = total_data
         self.cluster_idx = cluster_idx
 
-    def bandwidth_fits_in_cluster(self, cluster):
+    def bandwidth(self):
         """
-        Check if a data point's bandwidth fits into a cluster, i.e. if it is
-        higher or equal than the cluster's bandwidth
+        Returns the average bandwidth of the flow.
+        This function will raise an exception if the duration of the flow
+        is 0.
         """
-        return (self.duration * cluster.total_data
-                <= cluster.duration * self.total_data)
+        return self.total_data / self.duration
 
     def fits_in_cluster(self, cluster):
         """
@@ -57,7 +57,8 @@ class DataPoint(object):
         than the bandwidth of the cluster.
         """
         return (self.total_data <= cluster.total_data and
-                self.bandwidth_fits_in_cluster(cluster))
+                (self.duration * cluster.total_data
+                 <= cluster.duration * self.total_data))
 
     def get_assignment_cost(self, cluster):
         """
@@ -69,11 +70,6 @@ class DataPoint(object):
         slowdown_cost = (get_absolute_slowdown(self, cluster)
                          / (self.duration + EPS))
         return (ALPHA_DATA_COST * data_cost + ALPHA_SLOWDOWN_COST * slowdown_cost)
-
-#    def assign_data_point(self, cluster_list):
-#        """
-#        Assign the data point to the best cluster in the given cluster list.
-#        """
 
 
 class CostAccumulator(object):
@@ -97,57 +93,69 @@ class CostAccumulator(object):
         Consider a new data point, increasing the total counts for original and
         padding data, and for original duration and duration increase.
         """
-        if count_times == 1:
-            self.flow_count += 1 # Count original flows, not the splitted ones
-        assignment_costs = [None] * len(self.cluster_list)
         # Get the costs of assigning the data point to the different clusters.
         # For clusters into which the point does not fit, None is stored.
+        assignment_costs = [None] * len(self.cluster_list)
         for idx, cluster in enumerate(self.cluster_list):
             if not data_point.fits_in_cluster(cluster):
                 continue
             assignment_costs[idx] = data_point.get_assignment_cost(cluster)
-        # Assign the data point to the best-fitting cluster. If the point fits
-        # in no cluster, try splitting the flow into two flows with the same
-        # bandwith but half the duration and half the total data.
+
+        # Assign the data point to the best-fitting cluster (if any)
+        # else split the flow into multiple ones
         if assignment_costs != [None] * len(assignment_costs):
             data_point.cluster_idx = (
                     assignment_costs.index(min([x for x in assignment_costs
                                                 if x is not None])))
-        else:
-            if count_times > 1 or any(map(data_point.bandwidth_fits_in_cluster,
-                                      self.cluster_list)):
-                # The data point doesn't fit in any cluster, split it into
-                # two data point (two flows) and add both (recursive call),
-                # then return.
-                split_point = DataPoint(data_point.duration / float(2),
-                                          data_point.total_data / float(2))
-                self.add_data_point(split_point, count_times=count_times*2)
-                # Consider the original data point as assigned to the cluster
-                # to which the to splitted points were assigned
-                data_point.cluster_idx = split_point.cluster_idx
-#                # Increase the assignment count for the cluster to which the
-#                # current data point was added. Increase the count only
-#                # once per original data point
-#                if not splitted:
-#                    self.cluster_assignment_counts[data_point.cluster_idx] += 1
+            # Add the information of the data point to the cost accumulators.
+            self.tot_original_data += count_times * data_point.total_data
+            self.tot_padding_data += count_times * (
+                    self.cluster_list[data_point.cluster_idx].total_data
+                    - data_point.total_data)
+            self.tot_original_duration += count_times * data_point.duration
+            self.tot_duration_increase += count_times * get_absolute_slowdown(
+                    data_point, self.cluster_list[data_point.cluster_idx])
+            # Increase the flow counts (total and per cluster)
+            self.flow_count += count_times
+            self.cluster_assignment_counts[
+                    data_point.cluster_idx] += count_times
+        else: # No fitting cluster, flow has to be split (or is unassignable)
+            # Find the best cluster in terms of bandwidth
+            cluster_bandwidth_list = map(lambda x: x.bandwidth(),
+                                         self.cluster_list)
+            if data_point.duration == 0:
+                target_cluster_idx = cluster_bandwidth_list.index(
+                        min(cluster_bandwidth_list))
             else:
-                # The data point cannot be assigned because its bandwidth is
-                # too low. Add to the count of unassignable points and return.
-                self.unassignable_flows_count += 1
-            return
+                bw_differences = map(
+                        lambda x: data_point.bandwidth() - x.bandwidth(),
+                        cluster_list)
+                if all([x<0 for x in bw_differences]):
+                    # The data point cannot be assigned because its bandwidth is
+                    # too low. Add to the count of unassignable points
+                    # and return.
+                    self.unassignable_flows_count += 1
+                    self.flow_count += 1
+                    return
+                target_cluster_idx = bw_differences.index(
+                        min(filter(lambda x: x>=0, bw_differences)))
+            target_cluster = cluster_list[target_cluster_idx]
 
-        # Add the information of the data point to the cost accumulators.
-        self.tot_original_data += count_times * data_point.total_data
-        self.tot_padding_data += count_times * (
-                self.cluster_list[data_point.cluster_idx].total_data
-                - data_point.total_data)
-        self.tot_original_duration += count_times * data_point.duration
-        self.tot_duration_increase += count_times * get_absolute_slowdown(
-                data_point, self.cluster_list[data_point.cluster_idx])
-        # Increase the assignment count for the cluster to which the current
-        # data point was added
-        # TODO Instead of adding 1, count_times could be added
-        self.cluster_assignment_counts[data_point.cluster_idx] += 1
+            # Split flows into multiple points (try to fit as many as possible
+            # into the cluster with the closest bandwidth), add them
+            # recursively
+            num_fits = data_point.total_data // target_cluster.total_data
+            reduced_lifetime = (data_point.duration *
+                    target_cluster.total_data / data_point.total_data)
+            new_point = DataPoint(reduced_lifetime, target_cluster.total_data)
+            self.add_data_point(new_point, count_times=num_fits)
+
+            # Add the remaining data as another data point
+            remaining_data = data_point.total_data % target_cluster.total_data
+            if remaining_data > 0:
+                reduced_lifetime = (data_point.duration *
+                        remaining_data / data_point.total_data)
+                self.add_data_point(DataPoint(reduced_lifetime, remaining_data))
 
     def get_total_data_cost(self):
         if self.tot_original_data == 0:
@@ -165,6 +173,7 @@ class CostAccumulator(object):
         if self.flow_count == 0:
             return 0;
         return self.unassignable_flows_count / float(self.flow_count)
+
 
 # FIXME: this works only if all the flows start at the same time..
 def get_entropy_fraction(assigned_data_points):
@@ -233,6 +242,9 @@ def get_data_point_iterator():
             sys.exit(1)
 
 def compute_and_print_costs(cluster_list=CLUSTER_LIST):
+    assert len(cluster_list) > 0
+    for cluster in cluster_list:
+        assert cluster.duration > 0
     cost_acc = CostAccumulator(cluster_list)
     for data_point in get_data_point_iterator():
         cost_acc.add_data_point(data_point)
