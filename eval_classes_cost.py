@@ -86,6 +86,7 @@ class CostAccumulator(object):
         self.tot_original_duration = 0
         self.tot_duration_increase = 0
         self.unassignable_flows_count = 0
+        self.additional_set_ups = 0
         self.flow_count = 0
 
     def add_data_point(self, data_point, count_times=1):
@@ -149,6 +150,7 @@ class CostAccumulator(object):
                     target_cluster.total_data / data_point.total_data)
             new_point = DataPoint(reduced_lifetime, target_cluster.total_data)
             self.add_data_point(new_point, count_times=num_fits)
+            self.additional_set_ups += num_fits
 
             # Add the remaining data as another data point
             remaining_data = data_point.total_data % target_cluster.total_data
@@ -173,6 +175,11 @@ class CostAccumulator(object):
         if self.flow_count == 0:
             return 0;
         return self.unassignable_flows_count / float(self.flow_count)
+
+    def get_additional_setup_fraction(self):
+        if self.flow_count == 0:
+            return 0;
+        return self.additional_set_ups / float(self.flow_count)
 
 
 # FIXME: this works only if all the flows start at the same time..
@@ -254,6 +261,8 @@ def compute_and_print_costs(cluster_list=CLUSTER_LIST):
     tot_assigned_flows = sum(cost_acc.cluster_assignment_counts)
     relative_assignment = [float(x)#/tot_assigned_flows
                            for x in cost_acc.cluster_assignment_counts]
+    print("Additional setup fraction: ",
+          cost_acc.get_additional_setup_fraction())
     print("Cluster assignment counts:")
     for percent, cluster in zip(relative_assignment,
             [(c.duration, c.total_data) for c in cluster_list]):
