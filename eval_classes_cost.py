@@ -174,7 +174,8 @@ class CostAccumulator(object):
     def get_unassignable_fraction(self):
         if self.flow_count == 0:
             return 0;
-        return self.unassignable_flows_count / float(self.flow_count)
+        return (self.unassignable_flows_count /
+                float(self.flow_count - self.additional_set_ups))
 
     def get_additional_setup_fraction(self):
         if self.flow_count == 0:
@@ -287,8 +288,8 @@ if __name__ == "__main__":
 #              [10**4, 2 * 10**4, 10**5],
 #              [10**4, 10**5, 10**6]
 #            ]
-    durations = [[0.1], [1], [10], [0.1, 1], [1,10]]
-    datas = [[10**4], [10**5], [10**4, 10**5]]
+    durations = [[1, 10, 100], [1, 10, 50, 100], [1, 10, 30, 60, 100], [1, 5, 10, 50, 100]]
+    datas = [[10**4], [10**4, 10**5], [10**4, 10**5, 10**6]]
     for cluster_list in [[DataPoint(t, d)
                           for t in duration
                           for d in data]
