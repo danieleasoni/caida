@@ -138,8 +138,12 @@ class CostAccumulator(object):
                     self.unassignable_flows_count += 1
                     self.flow_count += 1
                     return
-                target_cluster_idx = bw_differences.index(
-                        min(filter(lambda x: x>=0, bw_differences)))
+                min_bw_diff = min(filter(lambda x: x>=0, bw_differences))
+                indices_and_tot_data = [(i, cluster_list[i].total_data)
+                                        for i, x in enumerate(bw_differences)
+                                        if x == min_bw_diff]
+                target_cluster_idx = [x[0] for x in indices_and_tot_data
+                    if x[1] == max([y[1] for y in indices_and_tot_data])][0]
             target_cluster = cluster_list[target_cluster_idx]
 
             # Split flows into multiple points (try to fit as many as possible
@@ -288,7 +292,8 @@ if __name__ == "__main__":
 #              [10**4, 2 * 10**4, 10**5],
 #              [10**4, 10**5, 10**6]
 #            ]
-    durations = [[1, 10, 100], [1, 10, 50, 100], [1, 10, 30, 60, 100], [1, 5, 10, 50, 100]]
+    #durations = [[1, 10, 100], [1, 10, 30, 60, 100], [1, 3, 6, 10, 30, 60, 100]]
+    durations = [[0.1, 1, 10, 30, 60, 100]]
     datas = [[10**4], [10**4, 10**5], [10**4, 10**5, 10**6]]
     for cluster_list in [[DataPoint(t, d)
                           for t in duration
@@ -296,6 +301,7 @@ if __name__ == "__main__":
                         for duration in durations
                         for data in datas]:
         print("#########################################")
+        cluster_list = filter(lambda x: x.bandwidth()<900000, cluster_list)
         compute_and_print_costs(cluster_list)
 
 
