@@ -55,7 +55,7 @@ def generate_hist_and_save(x, filename, bins=50, generate_pdf=False):
     plt.close()
 
 def generate_scatter(x, y, num_samples=None,
-        xlabel='session lifetime (seconds)', ylabel='bandwidth',
+        xlabel='Session lifetime (seconds)', ylabel='bandwidth',
         basefilename="lifetime_vs_bw"):
     assert len(x) == len(y)
 #    if num_samples is not None:
@@ -76,27 +76,41 @@ def generate_scatter(x, y, num_samples=None,
 #    plt.close()
 
     # Generate and save heatmap
-    filename = get_new_filename(os.path.join(OUTDIR, basefilename + "_heat"), ".pdf")
+    filename = get_new_filename(os.path.join(OUTDIR, basefilename + "_heat"), ".eps")
     fig = plt.hexbin(x, y, norm=matplotlib.colors.LogNorm(), linewidths=(0,),
-            xscale='log', yscale='log', cmap=plt.cm.Greys)
+            xscale='log', yscale='log', cmap=plt.cm.YlOrRd)
     ax = plt.gca()
     PCM=ax.get_children()[2]
     ax.set_yscale('log')
     ax.set_xscale('log')
-    ax.set_xlim([0.005, 3600])
-    ax.set_ylim([85, 900000000])
+    ax.set_xlim([0.005, 3000])
+    ax.set_ylim([85, 800000000])
 #    ax.set_xlim([0.05, 5000])
 #    ax.set_ylim([0.0004, 300])
     cb = plt.colorbar(PCM, ax=ax)
-    cb.set_label('# samples out of ' + str(len(y)) + ')')
+    cb.set_label('Number of samples (out of ' + str(len(y)) + ')')
     plt.xlabel(xlabel, fontsize=16)
     plt.ylabel(ylabel, fontsize=16)
     X = NP.logspace(-3,4,num=50)
-    Y = X * 100
-    plt.loglog(X,Y)
-    plt.text(X[-1]/20, Y[-1]/3, '100 B/s')
-    plt.show()
-    #plt.savefig(filename)
+    Y0 = X
+    plt.loglog(X,Y0, 'k')
+    plt.text(X[-1]/12, Y0[-1]/3, '1 B/s')
+    Y1 = X * 100
+    plt.loglog(X,Y1, 'k')
+    plt.text(X[-1]/20, Y1[-1]/3, '100 B/s')
+    Y2 = X * 10000
+    plt.loglog(X,Y2, 'k')
+    plt.text(X[-1]/20, Y2[-1]/3, '10 kB/s')
+    Y3 = X * 1000000
+    plt.loglog(X,Y3, 'k')
+    plt.text(X[-1]/150, Y3[-1]/25, '1 MB/s')
+    # Plot cluster points
+    s1, = plt.loglog([0.1,1,10,30,60,100], [10**4]*6, 'wo', label=r'$S_1$', markersize=8)
+    s2, = plt.loglog([1,10,30,60,100], [10**5]*5, 'co', label=r'$S_2$', markersize=8)
+    s3, = plt.loglog([10,30,60,100], [10**6]*4, 'ko', label=r'$S_3$', markersize=8)
+    plt.legend(loc=2, numpoints=1)
+    #plt.show()
+    plt.savefig(filename)
     plt.close()
 
 if __name__ == "__main__":
@@ -118,7 +132,7 @@ if __name__ == "__main__":
     data_array = NP.loadtxt(data_file)
 
     # Session lifetime in seconds histogram
-    generate_hist_and_save(data_array[:,LIFETIME_COL], "lifetime_sec", bins=LIFETIME_BINS)
+    #generate_hist_and_save(data_array[:,LIFETIME_COL], "lifetime_sec", bins=LIFETIME_BINS)
     # Bandwidth in packets-per-second histogram
     #generate_hist_and_save(data_array[:,3], "bwidth_pps", bins=BANDWIDTH_PPS_BINS)
     # Bandwidth in bytes-per-second histogram
@@ -136,7 +150,7 @@ if __name__ == "__main__":
               " != 0 { print $0 }' to filter.", file=sys.stderr)
         sys.exit(1)
     generate_scatter(data_array[:,LIFETIME_COL], data_array[:,TOTAL_BYTES_COL],
-                     ylabel='total data per flow',
+                     ylabel='Total data per flow (bytes)',
                      basefilename="total_data_vs_lifetime",
                      num_samples=SCATTER_SAMPLE_SIZE)
     # Scatter plot of lifetime vs bandwidth
