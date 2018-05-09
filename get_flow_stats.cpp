@@ -94,8 +94,8 @@ int main(int argc, char *argv[]) {
         // open capture file for offline processing
         descr = pcap_open_offline(in_file.string().c_str(), errbuf);
         if (descr == NULL) {
-            cerr << "pcap_open_offline() failed on file " << in_file << ": "
-                 << errbuf << endl;
+            cerr << ctime(&curr_time) << "pcap_open_offline() failed on file "
+                 << in_file << ": " << errbuf << endl;
             return 1;
         }
 
@@ -108,7 +108,8 @@ int main(int argc, char *argv[]) {
         // Start packet processing loop, just like live capture.
         // For each packet, packetHandler is called to process it
         if (pcap_loop(descr, 0, packetHandler, (u_char *)&pkthandler_args) < 0) {
-            cerr << "pcap_loop() failed: " << pcap_geterr(descr) << endl;
+            cerr << ctime(&curr_time) << "pcap_loop() failed: "
+                 << pcap_geterr(descr) << endl;
             return 1;
         }
         pcap_close(descr);
@@ -135,7 +136,8 @@ int main(int argc, char *argv[]) {
 }// end main
 
 
-void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) {
+void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
+                   const u_char* packet) {
     const struct ip* ipHeader;
     const struct tcphdr* tcpHeader;
     const struct udphdr* udpHeader;
