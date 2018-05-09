@@ -28,7 +28,9 @@ The main files for extracting packet and flow information are the following:
 * [Makefile](/Makefile) Builds the C++ code.
 * [constants.h](/constants.h) Contains some global parameters and constants.
 * [get_flow_stats.cpp](/get_flow_stats.cpp) contains the `main()` function, and
-  to check out what the code does you should start here. 
+  to check out what the code does you should start here. In particular, the
+  `main()` function calls a `packetHandler()` function where the actual packet
+  processing starts.
 * [FlowStatsTable.h](/FlowStatsTable.h) and
   [FlowStatsTable.cpp](/FlowStatsTable.cpp) define the `FlowStatsTable` class,
   which is a map that stores all flow stats (`FlowStats` class) for the flows
