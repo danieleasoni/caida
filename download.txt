@@ -2,4 +2,4 @@
 # http-password = <password to access the caida repo>
 
 # Then you can use a command like the following for the download
-wget -np -m --http-user=daniele.asoni@inf.ethz.ch -A *dirB.* -R *times.gz https://data.caida.org/datasets/passive-2014/equinix-chicago/20140320-130000.UTC/
+wget -np -m --http-user=daniele.asoni@inf.ethz.ch -A "*dirB.*" -R "*times.gz" https://data.caida.org/datasets/passive-2014/equinix-chicago/20140320-130000.UTC/
