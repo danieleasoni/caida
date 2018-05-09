@@ -27,14 +27,6 @@
 using namespace std;
 using namespace boost::filesystem;
 
-struct flow_stats {
-    unsigned long id;
-    struct timeval first_ts;
-    struct timeval last_ts;
-    unsigned long count;
-    unsigned long total_data;
-};
-
 // Arguments passed to the packetHandler function (see below).
 // In particular, a pointer to such a struct is passed as the userData param.
 struct packetHandler_args {
@@ -173,8 +165,8 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
 
     // Print out the packet description together with the ID of the flow it
     // belongs to.
-    output_packet_description(*(args->packet_out), current_flow_id, sourceIp,
-            destIp, (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
+//    output_packet_description(*(args->packet_out), current_flow_id, sourceIp,
+//            destIp, (int)ipHeader->ip_p, sourcePort, destPort, pkthdr);
 
 }
 
