@@ -1,16 +1,26 @@
 from __future__ import print_function
 import sys, os
+from collections import namedtuple
+import math
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as NP
 from types import *
 import time
-import math
-from collections import namedtuple
 
-USAGE = "Usage: python histograms.py infile"
+from plot_flow_stats import get_new_filename
 
-LIFETIME_COL = 1
-PKT_COUNT_COL = 2
-TOTAL_BYTES_COL =3
+USAGE = "Usage: python eval_classes_cost.py infile"
+
+OUTDIR = "figs"
+
+#LIFETIME_COL = 1
+#PKT_COUNT_COL = 2
+#TOTAL_BYTES_COL = 3
+LIFETIME_COL = 2
+PKT_COUNT_COL = 3
+TOTAL_BYTES_COL = 4
 #BANDWIDTH_COL = 14
 
 IGNORE_1_PKT_FLOWS = True
@@ -130,7 +140,7 @@ class CostAccumulator(object):
             else:
                 bw_differences = map(
                         lambda x: data_point.bandwidth() - x.bandwidth(),
-                        cluster_list)
+                        self.cluster_list)
                 if all([x<0 for x in bw_differences]):
                     # The data point cannot be assigned because its bandwidth is
                     # too low. Add to the count of unassignable points
@@ -139,12 +149,12 @@ class CostAccumulator(object):
                     self.flow_count += 1
                     return
                 min_bw_diff = min(filter(lambda x: x>=0, bw_differences))
-                indices_and_tot_data = [(i, cluster_list[i].total_data)
+                indices_and_tot_data = [(i, self.cluster_list[i].total_data)
                                         for i, x in enumerate(bw_differences)
                                         if x == min_bw_diff]
                 target_cluster_idx = [x[0] for x in indices_and_tot_data
                     if x[1] == max([y[1] for y in indices_and_tot_data])][0]
-            target_cluster = cluster_list[target_cluster_idx]
+            target_cluster = self.cluster_list[target_cluster_idx]
 
             # Split flows into multiple points (try to fit as many as possible
             # into the cluster with the closest bandwidth), add them
@@ -273,6 +283,34 @@ def compute_and_print_costs(cluster_list=CLUSTER_LIST):
             [(c.duration, c.total_data) for c in cluster_list]):
         print(percent, cluster)
 
+def plot_flowlet_costs(flowlet_data, flowlet_duration=100,
+        sequential=[1,10,100], parallel=[1,10,100],
+        xlabel='Amount of data sent by 100s flowlet', ylabel='data_cost',
+        basefilename="costs_vs_flowlet_rate"):
+    assert len(sequential) > 0 and len(parallel) > 0
+    accumulators = []
+    for data in flowlet_data:
+        acc = CostAccumulator([DataPoint(flowlet_duration*s, data*p)
+                               for s in sequential for p in parallel])
+        accumulators.append(acc)
+    for data_point in get_data_point_iterator():
+        for acc in accumulators:
+            acc.add_data_point(data_point)
+    data_costs = [acc.get_total_data_cost() for acc in accumulators]
+    slowdown_costs = [acc.get_total_slowdown_cost() for acc in accumulators]
+    unassignable = [acc.get_unassignable_fraction() for acc in accumulators]
+    filename = get_new_filename(os.path.join(OUTDIR, basefilename), ".eps")
+    fig = plt.plot(flowlet_data, data_costs)
+    ax = plt.gca()
+    #PCM=ax.get_children()[2]
+    plt.xlabel(xlabel, fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    plt.savefig(filename)
+    plt.close()
+
+
 if __name__ == "__main__":
 #    durations = [ [5],
 #                  [10],
@@ -293,15 +331,22 @@ if __name__ == "__main__":
 #              [10**4, 10**5, 10**6]
 #            ]
     #durations = [[1, 10, 100], [1, 10, 30, 60, 100], [1, 3, 6, 10, 30, 60, 100]]
-    durations = [[0.1, 1, 10, 30, 60, 100]]
-    datas = [[10**4], [10**4, 10**5], [10**4, 10**5, 10**6]]
-    for cluster_list in [[DataPoint(t, d)
-                          for t in duration
-                          for d in data]
-                        for duration in durations
-                        for data in datas]:
-        print("#########################################")
-        cluster_list = filter(lambda x: x.bandwidth()<900000, cluster_list)
-        compute_and_print_costs(cluster_list)
+
+    flowlet_data = NP.logspace(4,8,num=40)
+    plot_flowlet_costs(flowlet_data)
+
+#    durations = [[10, 10, 10, 100, 100, 100, 1000, 1000]] #[[0.1, 1, 10, 30, 60, 100]]
+#    datas = [[10**4, 10**5, 10**6, 10**5, 10**6, 10**7, 10**6, 10**7],
+#             #[10**6, 2*10**6, 3*10**6, 4*10**6, 5*10**6, 10*10**6],
+#            ]#, [10**4, 10**5], [10**4, 10**5, 10**6]]
+#    for cluster_list in [[DataPoint(t, d)
+#                          for t, d in zip(duration, data)]
+#                          #for t in duration
+#                          #for d in data]
+#                        for duration in durations
+#                        for data in datas]:
+#        print("#########################################")
+#        cluster_list = filter(lambda x: x.bandwidth()<900000, cluster_list)
+#        compute_and_print_costs(cluster_list)
 
 
