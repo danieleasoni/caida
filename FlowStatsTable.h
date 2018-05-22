@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "FlowStats.h"
+#include "FlowId.h"
 
 // FlowStatsTable keeps track of flow statistics: it registers new packets,
 // considering them for the stats of the flow those packets belong to, and it
@@ -33,7 +34,7 @@ public:
 
     // Add a new packet to the statistics of the flow it belongs to.
     // Returns the id of the flow of the packet.
-    unsigned long register_new_packet(const std::string fivetuple,
+    unsigned long register_new_packet(const FlowId& flow_id,
                                       const struct timeval *ts,
                                       unsigned long num_bytes);
     // Clean up all expired flows

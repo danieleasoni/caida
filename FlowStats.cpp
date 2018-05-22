@@ -16,10 +16,10 @@ typedef accumulator_set<double, stats<tag::min, tag::max, tag::mean,
         tag::median, tag::variance> > stats_acc_t;
 typedef accumulator_set<double, stats<tag::extended_p_square> > quantile_acc_t;
 
-FlowStats::FlowStats(unsigned long id, struct timeval first_ts,
-                     unsigned long first_bytes)
-        : _id(id), _first_ts(first_ts), _last_ts(first_ts), _pkt_count(1),
-          _total_bytes(first_bytes)
+FlowStats::FlowStats(unsigned long id, FlowId const& flow_id,
+                     struct timeval first_ts, unsigned long first_bytes)
+        : _id(id), _flow_id(flow_id), _first_ts(first_ts), _last_ts(first_ts),
+          _pkt_count(1), _total_bytes(first_bytes)
 #ifdef NETSEC_ADVANCED_FLOW_STATS
         , _pkt_count_per_second (NSConstants::MaxFlowLifetime, 0),
           _total_bytes_per_second (NSConstants::MaxFlowLifetime, 0) {
@@ -77,7 +77,7 @@ void FlowStats::register_packet(const struct timeval *ts,
 
 std::ostream& operator<<(std::ostream &strm, const FlowStats &fs) {
     const char * sep = NSConstants::FIELD_SEPARATOR;
-    strm << fs._id << sep << fs.get_flow_duration() << sep;
+    strm << fs._id << sep << fs.get_flow_id().proto << sep << fs.get_flow_duration() << sep;
     strm << fs._pkt_count << sep << fs._total_bytes << sep;
 #ifdef NETSEC_ADVANCED_FLOW_STATS
     // Compute statistics

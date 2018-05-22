@@ -22,6 +22,7 @@
 #include <boost/filesystem.hpp>
 
 #include "FlowStatsTable.h"
+#include "FlowId.h"
 #include "utils.h"
 
 using namespace std;
@@ -39,8 +40,8 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
                    const u_char* packet);
 
 // Creates a string representing the fivetuple provided (to identify a flow)
-string create_fivetuple_id(const char *sourceIp, const char *destIp,
-                           int ipProto, u_int sourcePort, u_int destPort);
+//string create_fivetuple_id(const char *sourceIp, const char *destIp,
+//                           int ipProto, u_int sourcePort, u_int destPort);
 
 void output_packet_description(ostream &out, unsigned long flowid,
                                char *sourceIp, char *destIp,
@@ -136,7 +137,7 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
     char sourceIp[INET_ADDRSTRLEN];
     char destIp[INET_ADDRSTRLEN];
     u_int sourcePort = 0, destPort = 0;
-    string fivetuple;
+    //string fivetuple;
     unsigned long current_flow_id;
     struct packetHandler_args* args = (struct packetHandler_args *)userData;
 
@@ -146,22 +147,24 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
 
     // Retrieve source and destination port for TCP or UDP protocol
     if (ipHeader->ip_p == IPPROTO_TCP) {
-      tcpHeader = (tcphdr*)(packet + sizeof(struct ip));
-      sourcePort = ntohs(tcpHeader->source);
-      destPort = ntohs(tcpHeader->dest);
-    }
-    if (ipHeader->ip_p == IPPROTO_UDP) {
-      udpHeader = (udphdr*)(packet + sizeof(struct ip));
-      sourcePort = ntohs(udpHeader->source);
-      destPort = ntohs(udpHeader->dest);
+        tcpHeader = (tcphdr*)(packet + sizeof(struct ip));
+        sourcePort = ntohs(tcpHeader->source);
+        destPort = ntohs(tcpHeader->dest);
+    } else if (ipHeader->ip_p == IPPROTO_UDP) {
+        udpHeader = (udphdr*)(packet + sizeof(struct ip));
+        sourcePort = ntohs(udpHeader->source);
+        destPort = ntohs(udpHeader->dest);
+    } else {
+        return;
     }
 
-    fivetuple = create_fivetuple_id(sourceIp, destIp, (int)ipHeader->ip_p,
-                                  sourcePort, destPort);
+    //fivetuple = create_fivetuple_id(sourceIp, destIp, (int)ipHeader->ip_p,
+    //                              sourcePort, destPort);
 
-    current_flow_id = args->flow_table->register_new_packet(fivetuple,
-                                                          &pkthdr->ts,
-                                                          pkthdr->len);
+    FlowId flow_id(sourceIp, destIp, sourcePort, destPort, (int)ipHeader->ip_p);
+
+    current_flow_id = args->flow_table->register_new_packet(
+            flow_id, &pkthdr->ts, pkthdr->len);
 
     // Print out the packet description together with the ID of the flow it
     // belongs to.
@@ -171,13 +174,13 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr,
 }
 
 
-string create_fivetuple_id(const char *sourceIp, const char *destIp,
-                           int ipProto, u_int sourcePort, u_int destPort) {
-    stringstream sstm;
-    sstm << sourceIp << "#" << destIp << "#" << ipProto << "#" << sourcePort
-       << "#" << destPort;
-    return sstm.str();
-}
+//string create_fivetuple_id(const char *sourceIp, const char *destIp,
+//                           int ipProto, u_int sourcePort, u_int destPort) {
+//    stringstream sstm;
+//    sstm << sourceIp << "#" << destIp << "#" << ipProto << "#" << sourcePort
+//       << "#" << destPort;
+//    return sstm.str();
+//}
 
 
 /* This function prints out the packet description of the given packet together

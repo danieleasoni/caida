@@ -13,15 +13,16 @@ typedef map<string,shared_ptr<FlowStats> >::iterator map_it_type;
 
 FlowStatsTable::FlowStatsTable() {}
 
-unsigned long FlowStatsTable::register_new_packet(const string fivetuple,
+unsigned long FlowStatsTable::register_new_packet(const FlowId& flow_id,
                                                   const struct timeval *ts,
                                                   unsigned long num_bytes) {
     pair<map_it_type,bool> emplace_result;
+    const string fivetuple = flow_id.get_fivetuple_str();
 
     auto flow_stat = _table.find(fivetuple);
     if (flow_stat == _table.end()) {// The packet belongs to a new flow
         shared_ptr<FlowStats> flow_stats_ptr(
-                new FlowStats(_id_counter, *ts, num_bytes));
+                new FlowStats(_id_counter, flow_id, *ts, num_bytes));
         emplace_result = _table.emplace(fivetuple, flow_stats_ptr);
         assert (emplace_result.second); // The key must be newly inserted
         flow_stat = emplace_result.first; // Get iterator at new element
@@ -33,7 +34,7 @@ unsigned long FlowStatsTable::register_new_packet(const string fivetuple,
         // Recursive call after the expired flow has been removed.
         // Could be made more efficient by repeating the code above, or by
         // doing some additional checks.
-        return register_new_packet(fivetuple, ts, num_bytes);
+        return register_new_packet(flow_id, ts, num_bytes);
     } else {
        flow_stat->second->register_packet(ts, num_bytes);
     }

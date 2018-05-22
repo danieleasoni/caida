@@ -7,10 +7,13 @@
 #include <string>
 #include <vector>
 
+#include "FlowId.h"
+
 /* FlowStats contains the main statistics of a flow */
 class FlowStats {
     friend std::ostream& operator<<(std::ostream &, const FlowStats &);
     const unsigned long _id;
+    const FlowId _flow_id;
     const struct timeval _first_ts; // Timestamp of the first packet
     struct timeval _last_ts; // Timestamp of the last packet
     // Indicates whether the flow has been marked as expired and cleaned up
@@ -24,7 +27,7 @@ class FlowStats {
 
 public:
     // Fast constructor that takes the information about the first packet
-    FlowStats(unsigned long id, struct timeval first_ts,
+    FlowStats(unsigned long id, FlowId const& flow_id, struct timeval first_ts,
               unsigned long first_bytes);
 
     // Check if a flow is expired at the time provided
@@ -33,6 +36,11 @@ public:
     // Return the id of the flow
     unsigned long get_id() const {
         return _id;
+    }
+
+    // Return FlowId of the flow
+    const FlowId& get_flow_id() const {
+        return _flow_id;
     }
 
     // Return the duration of the flow (so far) in seconds
