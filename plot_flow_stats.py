@@ -1,6 +1,7 @@
 from __future__ import print_function
 import sys, os
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as NP
 from types import *
@@ -17,9 +18,14 @@ BANDWIDTH_PPS_BINS = NP.linspace(0, 20, num=100)
 BANDWIDTH_BPS_BINS = NP.linspace(0, 20, num=100)
 LIFETIME_BINS = NP.linspace(0, 3600, num=100)
 SCATTER_SAMPLE_SIZE = 250000
-LIFETIME_COL = 1
-PKT_COUNT_COL = 2
-TOTAL_BYTES_COL =3
+
+PROTOCOL_COL = 1
+LIFETIME_COL = 2
+PKT_COUNT_COL = 3
+TOTAL_BYTES_COL = 4
+#LIFETIME_COL = 1
+#PKT_COUNT_COL = 2
+#TOTAL_BYTES_COL =3
 #BANDWIDTH_COL = 14
 
 def get_new_filename(base, ext="", with_time=False):
@@ -87,28 +93,32 @@ def generate_scatter(x, y, num_samples=None,
     ax.set_ylim([85, 800000000])
 #    ax.set_xlim([0.05, 5000])
 #    ax.set_ylim([0.0004, 300])
-    cb = plt.colorbar(PCM, ax=ax)
-    cb.set_label('Number of samples (out of ' + str(len(y)) + ')')
+#    cb = plt.colorbar(PCM, ax=ax)
+#    cb.set_label('Number of samples (out of ' + str(len(y)) + ')')
     plt.xlabel(xlabel, fontsize=16)
     plt.ylabel(ylabel, fontsize=16)
-    X = NP.logspace(-3,4,num=50)
-    Y0 = X
-    plt.loglog(X,Y0, 'k')
-    plt.text(X[-1]/12, Y0[-1]/3, '1 B/s')
-    Y1 = X * 100
-    plt.loglog(X,Y1, 'k')
-    plt.text(X[-1]/20, Y1[-1]/3, '100 B/s')
-    Y2 = X * 10000
-    plt.loglog(X,Y2, 'k')
-    plt.text(X[-1]/20, Y2[-1]/3, '10 kB/s')
-    Y3 = X * 1000000
-    plt.loglog(X,Y3, 'k')
-    plt.text(X[-1]/150, Y3[-1]/25, '1 MB/s')
+#    X = NP.logspace(-3,4,num=50)
+#    Y0 = X
+#    plt.loglog(X,Y0, 'k')
+#    plt.text(X[-1]/12, Y0[-1]/3, '1 B/s')
+#    Y1 = X * 100
+#    plt.loglog(X,Y1, 'k')
+#    plt.text(X[-1]/20, Y1[-1]/3, '100 B/s')
+#    Y2 = X * 10000
+#    plt.loglog(X,Y2, 'k')
+#    plt.text(X[-1]/20, Y2[-1]/3, '10 kB/s')
+#    Y3 = X * 1000000
+#    plt.loglog(X,Y3, 'k')
+#    plt.text(X[-1]/150, Y3[-1]/25, '1 MB/s')
+#    # Plot cluster points
+#    s1, = plt.loglog([0.1,1,10,30,60,100], [10**4]*6, 'wo', label=r'$S_1$', markersize=8)
+#    s2, = plt.loglog([1,10,30,60,100], [10**5]*5, 'co', label=r'$S_2$', markersize=8)
+#    s3, = plt.loglog([10,30,60,100], [10**6]*4, 'ko', label=r'$S_3$', markersize=8)
+#    plt.legend(loc=2, numpoints=1)
     # Plot cluster points
-    s1, = plt.loglog([0.1,1,10,30,60,100], [10**4]*6, 'wo', label=r'$S_1$', markersize=8)
-    s2, = plt.loglog([1,10,30,60,100], [10**5]*5, 'co', label=r'$S_2$', markersize=8)
-    s3, = plt.loglog([10,30,60,100], [10**6]*4, 'ko', label=r'$S_3$', markersize=8)
-    plt.legend(loc=2, numpoints=1)
+    s1, = plt.loglog([10,100, 1000], [10**4, 10**5, 10**6], 'wo', label=r'$S_1$', markersize=8)
+    s2, = plt.loglog([10,100, 1000], [10**5, 10**6, 10**7], 'co', label=r'$S_2$', markersize=8)
+    s3, = plt.loglog([10,100], [10**6, 10**7], 'ko', label=r'$S_3$', markersize=8)
     #plt.show()
     plt.savefig(filename)
     plt.close()
