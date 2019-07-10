@@ -11,7 +11,10 @@ import time
 
 from plot_flow_stats import get_new_filename
 
-USAGE = "Usage: python eval_classes_cost.py infile"
+USAGE = "Usage: python eval_classes_cost.py outname [infile ...]"
+
+# The input files begin at the third command line argument
+ARGV_FILES_START = 2
 
 OUTDIR = "figs"
 
@@ -243,13 +246,13 @@ def _get_data_point_iterator_from_file(data_file):
                         float(columns[TOTAL_BYTES_COL]))
 
 def get_data_point_iterator():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print("reading from stdin..")
         for dp in _get_data_point_iterator_from_file(sys.stdin):
             yield dp
     else:
         try:
-            for filename in sys.argv[1:]:
+            for filename in sys.argv[ARGV_FILES_START:]:
                 data_file = open(filename, 'r')
 
                 for dp in _get_data_point_iterator_from_file(data_file):
@@ -312,6 +315,9 @@ def plot_flowlet_costs(flowlet_data, flowlet_duration=100,
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(USAGE, file=sys.stderr)
+        sys.exit(1)
 #    durations = [ [5],
 #                  [10],
 #                  [0.1, 1, 10, 100],
@@ -332,6 +338,7 @@ if __name__ == "__main__":
 #            ]
     #durations = [[1, 10, 100], [1, 10, 30, 60, 100], [1, 3, 6, 10, 30, 60, 100]]
 
+    basefilename = "costs_vs_flowlet_rate_" + sys.argv[1]
     flowlet_data = NP.logspace(4,8,num=40)
     plot_flowlet_costs(flowlet_data)
 

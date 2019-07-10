@@ -84,7 +84,7 @@ def generate_scatter(x, y, num_samples=None,
     # Generate and save heatmap
     filename = get_new_filename(os.path.join(OUTDIR, basefilename + "_heat"), ".eps")
     fig = plt.hexbin(x, y, norm=matplotlib.colors.LogNorm(), linewidths=(0,),
-            xscale='log', yscale='log', cmap=plt.cm.YlOrRd)
+            xscale='log', yscale='log', cmap=plt.cm.Greys)#cmap=plt.cm.YlOrRd)
     ax = plt.gca()
     PCM=ax.get_children()[2]
     ax.set_yscale('log')
